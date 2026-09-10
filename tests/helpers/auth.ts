@@ -61,7 +61,7 @@ export async function markEmailVerified(email: string) {
   await client.connect();
   try {
     const res = await client.query(
-      'UPDATE users.users SET "emailVerified" = true WHERE email = $1',
+      'UPDATE auth.accounts SET "emailVerified" = true WHERE email = $1',
       [email]
     );
     if (res.rowCount !== 1) {

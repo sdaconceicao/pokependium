@@ -26,10 +26,10 @@ The application supports multiple environment configurations:
 Key environment variables:
 
 - `NODE_ENV`: Environment name (development, test, production)
-- `PORT`: Application port (default: 3002)
+- `PORT`: Application port (default: 3007)
 - `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_DATABASE`, `DB_SCHEMA`: Database configuration
 - `ALLOWED_ORIGINS`: CORS allowed origins
-- `JWT_SECRET`, `JWT_EXPIRES_IN`: JWT configuration
+- `JWT_SECRET`: must match the auth service that issues access tokens
 
 ## Compile and run the project
 
@@ -58,7 +58,7 @@ Interactive Swagger (OpenAPI) docs are available while the server is running:
 - Swagger UI: `http://localhost:<PORT>/docs`
 - OpenAPI JSON: `http://localhost:<PORT>/docs-json`
 
-Protected endpoints (e.g. `GET /users`) can be tried out by clicking **Authorize** and pasting the `access_token` returned by `POST /auth/login` or `POST /auth/register`.
+Protected endpoints (e.g. `GET /users`) can be tried out by clicking **Authorize** and pasting the `access_token` issued by the auth service.
 
 ## Run tests
 

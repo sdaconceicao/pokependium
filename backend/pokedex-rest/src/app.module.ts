@@ -1,17 +1,16 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
+import { PassportModule } from '@nestjs/passport';
 
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PostgresDataSourceOptions } from 'typeorm/driver/postgres/PostgresDataSourceOptions';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { AuthModule } from './auth/auth.module';
 import { JwtGuard } from './auth/guards/jwt.guard';
 import { JwtStrategy } from './auth/strategy/jwt.strategy';
 import databaseConfig from './config/database.config';
 import { validateEnv } from './config/env.validation';
-import mailConfig from './config/mail.config';
 import { postgresDriver } from './config/postgres-driver';
 import { GroupsModule } from './groups/groups.module';
 import { UsersModule } from './users/users.module';
@@ -21,7 +20,7 @@ import { UsersModule } from './users/users.module';
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: process.env.NODE_ENV === 'test' ? '.env.test' : '.env',
-      load: [databaseConfig, mailConfig],
+      load: [databaseConfig],
       validate: validateEnv,
     }),
     TypeOrmModule.forRootAsync({
@@ -41,18 +40,18 @@ import { UsersModule } from './users/users.module';
                 database: configService.get('database.database')!,
               }),
           ssl: configService.get('database.ssl')!,
-          schema: 'public', // Start with public schema so migrations can run
+          schema: 'public',
           entities: [`${__dirname}/**/*.entity{.ts,.js}`],
-          synchronize: false, // Disable when using migrations
+          synchronize: false,
           logging: configService.get('database.logging')!,
           migrations: [`${__dirname}/migrations/*{.ts,.js}`],
           migrationsRun: configService.get('database.migrationsRun')!,
-          migrationsTableName: 'migrations', // Name of the migrations table
+          migrationsTableName: 'migrations',
         };
       },
       inject: [ConfigService],
     }),
-    AuthModule,
+    PassportModule.register({ defaultStrategy: 'jwt' }),
     UsersModule,
     GroupsModule,
   ],

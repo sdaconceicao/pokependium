@@ -25,20 +25,18 @@ export default defineConfig({
       timeout: 120 * 1000,
     },
     {
-      name: "pokedex-rest",
-      command: "cd backend/pokedex-rest && pn  start:test",
+      name: "pokedex-auth-and-rest",
+      command: "bash scripts/start-e2e-backends.sh",
       url: "http://localhost:3005/health",
       reuseExistingServer: !process.env.CI,
-      timeout: 120 * 1000,
+      timeout: 180 * 1000,
       env: {
         DB_HOST: "localhost",
         DB_PORT: "5434",
         DB_USERNAME: "pokedex_user",
         DB_PASSWORD: "pokedex_password",
         DB_DATABASE: "pokedex_test",
-        DB_SCHEMA: "users",
         JWT_SECRET: "test-secret-key-for-e2e-tests",
-        PORT: "3005",
       },
     },
     {
@@ -49,7 +47,8 @@ export default defineConfig({
       timeout: 120 * 1000,
       env: {
         NODE_ENV: "test",
-        NEXT_PUBLIC_AUTH_API_URL: "http://localhost:3005",
+        NEXT_PUBLIC_AUTH_API_URL: "http://localhost:3006",
+        NEXT_PUBLIC_REST_API_URL: "http://localhost:3005",
       },
     },
   ],

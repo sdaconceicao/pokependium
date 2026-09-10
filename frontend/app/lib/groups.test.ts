@@ -1,6 +1,6 @@
 import { groupsApi } from "./groups";
 
-const API_BASE_URL = "http://localhost:3004";
+const API_BASE_URL = "http://localhost:3007";
 const TOKEN = "test-token";
 
 const GROUP = { id: "1", name: "Favorites", isDefault: true, pokemonCount: 2 };

@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
     paths:
+      - "backend/auth/src/migrations/**"
+      - "backend/auth/src/run-migrations.ts"
       - "backend/pokedex-rest/src/migrations/**"
       - "backend/pokedex-rest/src/run-migrations.ts"
       - ".github/workflows/db-migrate.yml"
@@ -12,12 +14,12 @@ on:
 # Never run two migration jobs at once; queue instead of cancelling so
 # every pushed migration still gets applied, in order.
 concurrency:
-  group: pokedex-rest-migrations
+  group: postgres-migrations
   cancel-in-progress: false
 
 jobs:
   migrate:
-    name: Run Migrations - Backend REST
+    name: Run Migrations
     runs-on: ubuntu-latest
 
     steps:
@@ -36,7 +38,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run migrations
+      - name: Run auth migrations
+        run: pnpm --filter ./backend/auth run migration:run
+        env:
+          DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
+
+      - name: Run REST migrations
         run: pnpm --filter ./backend/pokedex-rest run migration:run
         env:
           DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}

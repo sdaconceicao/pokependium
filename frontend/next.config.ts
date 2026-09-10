@@ -88,15 +88,22 @@ export default async function nextConfig(): Promise<NextConfig> {
   );
 
   const authOrigin = await originFor(
-    "pokedex-rest",
+    "pokedex-auth",
     "/health",
     process.env.NEXT_PUBLIC_AUTH_API_URL ?? "http://localhost:3004",
+  );
+
+  const restOrigin = await originFor(
+    "pokedex-rest",
+    "/health",
+    process.env.NEXT_PUBLIC_REST_API_URL ?? "http://localhost:3007",
   );
 
   return {
     env: {
       NEXT_PUBLIC_GRAPHQL_URL: `${graphqlOrigin}/graphql`,
       NEXT_PUBLIC_AUTH_API_URL: authOrigin,
+      NEXT_PUBLIC_REST_API_URL: restOrigin,
     },
     images: {
       remotePatterns: [

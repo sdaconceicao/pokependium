@@ -6,7 +6,7 @@ import type {
   UpdateGroupRequest,
 } from "../types/groups";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_AUTH_API_URL || "http://localhost:3004";
+const API_BASE_URL = process.env.NEXT_PUBLIC_REST_API_URL || "http://localhost:3007";
 
 const groupUrl = (id?: string): string =>
   id ? `${API_BASE_URL}/groups/${encodeURIComponent(id)}` : `${API_BASE_URL}/groups`;

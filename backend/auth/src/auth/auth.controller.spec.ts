@@ -9,7 +9,7 @@ import {
   type Mocked,
   vi,
 } from 'vitest';
-import { UserEntity } from '../users/users.entity';
+import { AccountEntity } from '../accounts/accounts.entity';
 import { AuthController, AuthenticatedRequest } from './auth.controller';
 import { AuthService } from './auth.service';
 import { PasswordResetConfirmRequestDto } from './dtos/password-reset-confirm-request.dto';
@@ -21,13 +21,10 @@ describe('AuthController', () => {
   let controller: AuthController;
   let authService: Mocked<AuthService>;
 
-  const mockUser: UserEntity = {
+  const mockUser: AccountEntity = {
     id: 'user-123',
-    username: 'testuser',
     email: 'test@example.com',
     password: 'hashedPassword123',
-    firstName: 'Test',
-    lastName: 'User',
     emailVerified: false,
     failedPasswordAttempts: 0,
     passwordLockedUntil: null,

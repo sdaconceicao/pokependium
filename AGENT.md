@@ -5,7 +5,7 @@
 This is a pnpm TypeScript monorepo using workspaces.
 
 - `frontend/*` contains deployable frontend application built in nextjs.
-- `backend/*` contains multiple backend apis that support the frontend.
+- `backend/*` contains multiple backend apis that support the frontend (auth, REST profiles/groups, GraphQL Pokémon data).
 
 View `docs/ARCHITECTURE.md` for a deeper understanding of the System Architecture
 

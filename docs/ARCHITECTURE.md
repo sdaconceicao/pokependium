@@ -8,7 +8,7 @@ Cursor rules defer here for architectural questions.
 
 ## Repository shape
 
-A **pnpm workspace monorepo** (`pnpm-workspace.yaml`) with three deployable
+A **pnpm workspace monorepo** (`pnpm-workspace.yaml`) with four deployable
 packages and shared tooling. The workspace catalog pins a single Biome version
 that every package consumes via `catalog:`, so
 lint/format stay consistent across packages.
@@ -17,8 +17,9 @@ lint/format stay consistent across packages.
 pokedex/
 ├── frontend/                 # Next.js app (pokependium-frontend) — UI
 ├── backend/
+│   ├── auth/                 # NestJS auth API — login, verify, password reset
 │   ├── pokedex-graphql/      # GraphQL Yoga API — Pokémon data
-│   └── pokedex-rest/         # NestJS REST API — auth & users
+│   └── pokedex-rest/         # NestJS REST API — profiles, avatars, groups
 ├── tests/                    # Playwright E2E specs (root workspace)
 ├── docs/                     # agent/rule docs (this file + standards)
 ├── scripts/                  # deploy / migration / verify helpers
@@ -44,8 +45,10 @@ Next.js **16** App Router application (React **19**) deployed to Vercel.
     `backend/pokedex-graphql/src/schema.graphql` into `app/types/graphql.ts`.
   - **TanStack React Query** (`app/providers/QueryProvider.tsx`) handles
     client-side caching/invalidation for client components.
-  - REST auth calls (`app/lib/auth.ts`) use plain `fetch` to the REST API and
-    store the JWT in `localStorage` (`access_token`).
+  - REST auth calls (`app/lib/auth.ts`) use plain `fetch` to the **auth** API
+    (`NEXT_PUBLIC_AUTH_API_URL`) and store the JWT in `localStorage`
+    (`access_token`). Profile, avatar, and group calls go to the **REST** API
+    (`NEXT_PUBLIC_REST_API_URL`) with that same Bearer token.
 - **Providers** (nested in `app/layout.tsx`): `LagoProvider` → `QueryProvider`
   → `ApolloWrapper` → `AuthModalProvider` → `AppShell`.
 - **Routes**: `/` (home), `/pokemon/[id]`, `/region/[name]`, `/type/[name]`,
@@ -79,22 +82,39 @@ the external PokéAPI** (`https://pokeapi.co/api/v2/`), not a database.
 - **Codegen**: `generate` emits TypeScript resolver types from the SDL.
 - **Tooling**: Biome, Vitest (resolver + util tests).
 
-### 3. REST API — `backend/pokedex-rest/`
+### 3. Auth API — `backend/auth/`
 
-NestJS (**Fastify** adapter) service for **authentication and user management**.
-It owns the only persistent datastore in the system.
+Generic NestJS (**Fastify**) identity service. Each product deploys its own
+instance with its own accounts; this is reusable software, not a shared SSO
+user pool.
 
-- **Stack**: NestJS modules (`auth`, `users`), JWT auth (local + JWT strategies,
-  `JwtGuard` applied globally), Swagger docs at `/docs`.
-- **Persistence**: **PostgreSQL** (Neon in production) via **TypeORM** with
-  migrations (`src/migrations`) and seeders (`typeorm-extension`). Migrations
-  run on deploy (preview runs them via Vercel build) and on `main` pushes via
-  the `db-migrate.yml` workflow.
-- **CORS**: configurable via `ALLOWED_ORIGINS` (supports `*` wildcards for
-  Vercel preview URLs). The same allow-list decides which origins an emailed
-  link may point at: reset/verification links are built from the request's
-  `Origin` when it matches, so preview deployments link back to themselves,
-  falling back to `FRONTEND_BASE_URL` otherwise.
+- **Owns**: account id, email, password hash, `emailVerified`, lockout;
+  `POST /auth/login|register|verify-email|password-reset|password-reset/confirm|change-password`;
+  HS256 access JWTs (`userId` + `email`); hash-bound reset/verify tokens;
+  transactional mail (Resend) with config-driven `PRODUCT_NAME` and link paths.
+- **Does not own**: profiles, avatars, groups, or any product domain data. It
+  never calls Pokependium REST.
+- **Persistence**: PostgreSQL schema `auth` (`auth.accounts`). Shares the
+  Pokependium Postgres in this repo; a later product can point at its own DB.
+  Migrations use table `auth_migrations`.
+- **CORS / emailed links**: `ALLOWED_ORIGINS` gates CORS *and* which origins a
+  reset/verification link may point at (request `Origin` when allow-listed,
+  else `FRONTEND_BASE_URL`). `PRODUCT_NAME` is required at boot.
+
+### 4. REST API — `backend/pokedex-rest/`
+
+NestJS (**Fastify**) service for **profiles, avatars, and groups**. It verifies
+JWTs issued by auth with the same `JWT_SECRET`; it does not issue tokens or
+send mail.
+
+- **Stack**: NestJS modules (`users`, `groups`), `JwtGuard` globally (signature
+  check only), Swagger docs at `/docs`.
+- **Persistence**: PostgreSQL schema `users` (profiles, avatars, groups) via
+  TypeORM migrations. First authenticated `GET /users` upserts a local profile
+  keyed by JWT `userId` (email on that response comes from the token, not a
+  live auth lookup). Groups already key off `userId` with no FK to auth.
+- **Account deletion** in auth does not revoke in-flight JWTs until expiry;
+  domain rows can orphan. There is no revocation list in v1.
 - **Tooling**: Biome, Vitest. Bruno collections under `bruno/` for manual API
   testing.
 
@@ -107,22 +127,27 @@ Browser (Next.js UI)
   │                                                        ▲
   │                                              MSW mock layer (USE_MOCK_API)
   │
-  └─ Auth requests ──► fetch() ──► NestJS REST API ──► PostgreSQL (Neon)
-                              ▲
-                       JWT (localStorage) returned to client
+  ├─ Auth requests ──► fetch() ──► Auth API ──► PostgreSQL (auth.accounts)
+  │                         ▲
+  │                  JWT (localStorage)
+  │
+  └─ Profile / groups ──► fetch() ──► REST API ──► PostgreSQL (users.*)
+                                ▲
+                         Bearer JWT (verified, not issued)
 ```
 
 - The **frontend never talks to PokéAPI directly**; all Pokémon data goes
-  through the GraphQL proxy. Auth/user data goes through the REST API.
-- The two backends are independent: the GraphQL API has no DB and no knowledge
-  of users; the REST API has no Pokémon data.
+  through the GraphQL proxy. Credentials go through the auth API. Profiles,
+  avatars, and groups go through REST.
+- GraphQL has no DB and no knowledge of users. Auth has no Pokémon or group
+  data. REST verifies auth-issued JWTs and must not import auth tables.
 
 ## Tooling & quality gates
 
 - **Lint/format**: Biome 2.5.6 everywhere (workspace catalog).
 - **Unit tests**: Vitest per package.
 - **E2E tests**: Playwright at the repo root (`tests/`), run in CI with a
-  Postgres service container for the REST API.
+  Postgres service container for auth + REST.
 - **CI** (`ci.yml` / `pull-request.yml`): a `setup` job installs deps and caches
   the workspace; `frontend-checks`, `backend-checks`, and `e2e-checks` run as
   reusable `workflow_call` jobs. Uses `pnpm install --frozen-lockfile`.
@@ -134,19 +159,30 @@ Browser (Next.js UI)
 
 ## Deployment (Vercel)
 
-All three packages deploy to Vercel (`vercel.json` in `frontend` and
-`backend/pokedex-rest`; the GraphQL API also offers a Cloudflare Worker target):
+Four packages deploy to Vercel (`vercel.json` in `frontend`, `backend/auth`,
+and `backend/pokedex-rest`; the GraphQL API also offers a Cloudflare Worker
+target):
 
-- **frontend** — `pnpm build` (`prebuild` runs GraphQL codegen).
-- **pokedex-rest** — build + (preview only) DB migrations; connects to Neon.
+- **frontend** — `pnpm build` (`prebuild` runs GraphQL codegen). Related-project
+  lookup uses Vercel project names `pokedex-auth`, `pokedex-rest`, and
+  `pokedex-graphql`.
+- **auth** (`pokedex-auth`) — build + (preview only) DB migrations; connects to
+  Neon. Issues JWTs.
+- **pokedex-rest** — build + (preview only) DB migrations; connects to the same
+  Neon DB; verifies JWTs.
 - **pokedex-graphql** — built from the embedded schema; runs on Vercel serverless
   or Cloudflare Workers.
 
 Environment variables wire the pieces together:
 `NEXT_PUBLIC_GRAPHQL_URL` (frontend → GraphQL), `NEXT_PUBLIC_AUTH_API_URL`
-(frontend → REST), `ALLOWED_ORIGINS` (both APIs' CORS, plus the REST API's
-emailed-link allow-list), `FRONTEND_BASE_URL` (REST API's fallback origin for
-emailed links; required at boot), `USE_MOCK_API` (GraphQL mock mode).
+(frontend → auth), `NEXT_PUBLIC_REST_API_URL` (frontend → REST),
+`ALLOWED_ORIGINS` (CORS on all HTTP APIs; auth also uses it for emailed-link
+allow-listing), `FRONTEND_BASE_URL` and `PRODUCT_NAME` (auth, required at
+boot), `JWT_SECRET` (shared by auth and REST in this product), `USE_MOCK_API`
+(GraphQL mock mode).
+
+Production migrations run on `main` via `db-migrate.yml` (auth first, then
+REST).
 
 ## Conventions agents must respect
 
@@ -155,7 +191,8 @@ emailed links; required at boot), `USE_MOCK_API` (GraphQL mock mode).
   codegen), `src/schema.generated.ts` (GraphQL embed-schema), and any
   `*.generated.ts` — edit the sources (`schema.graphql`, `.graphql` documents),
   not the outputs.
-- Don't add cross-backend coupling; keep the GraphQL proxy and REST auth
-  separate.
+- Don't add cross-backend coupling; keep the GraphQL proxy, auth, and REST
+  domain API separate. REST may verify a JWT issued by auth; it must not import
+  auth database tables.
 - Follow the standards in `docs/` (testing, pure functions, GitHub Actions,
   interaction) and the package-level `*.mdc` rules.

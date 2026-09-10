@@ -15,54 +15,25 @@ export class UsersService {
     return this.usersRepository.save(user);
   }
 
-  async findOneByUsername(username: string): Promise<UserEntity | null> {
-    return this.usersRepository.findOne({ where: { username } });
-  }
-
-  async findOneByEmail(email: string): Promise<UserEntity | null> {
-    return this.usersRepository.findOne({ where: { email } });
-  }
-
   async findOneById(id: string): Promise<UserEntity | null> {
     return this.usersRepository.findOne({ where: { id } });
   }
 
-  async update(
-    id: string,
-    userData: Partial<UserEntity>,
-  ): Promise<UserEntity | null> {
-    await this.usersRepository.update(id, userData);
-    return this.findOneById(id);
-  }
-
   /**
-   * Atomically increments the failed-password counter. If the lock window has
-   * expired, the streak resets to 1 instead of continuing from the old count.
+   * First authenticated request for an auth account creates a local profile.
+   * Auth never calls this service — the JWT `userId` is the shared key.
    */
-  async recordFailedPasswordAttempt(
-    userId: string,
-    maxAttempts: number,
-    lockoutMs: number,
-  ): Promise<void> {
-    const lockedUntil = new Date(Date.now() + lockoutMs);
+  async ensureProfile(userId: string, email: string): Promise<UserEntity> {
+    const existing = await this.findOneById(userId);
+    if (existing) {
+      return existing;
+    }
 
-    await this.usersRepository
-      .createQueryBuilder()
-      .update(UserEntity)
-      .set({
-        failedPasswordAttempts: () =>
-          `CASE WHEN "passwordLockedUntil" IS NOT NULL AND "passwordLockedUntil" <= NOW() THEN 1 ELSE "failedPasswordAttempts" + 1 END`,
-        passwordLockedUntil: () =>
-          `CASE WHEN (CASE WHEN "passwordLockedUntil" IS NOT NULL AND "passwordLockedUntil" <= NOW() THEN 1 ELSE "failedPasswordAttempts" + 1 END) >= :maxAttempts THEN :lockedUntil ELSE NULL END`,
-      })
-      .setParameter('maxAttempts', maxAttempts)
-      .setParameter('lockedUntil', lockedUntil)
-      .where('id = :userId', { userId })
-      .execute();
-  }
-
-  async delete(id: string): Promise<boolean> {
-    const result = await this.usersRepository.delete(id);
-    return (result.affected ?? 0) > 0;
+    return this.create({
+      id: userId,
+      username: email,
+      firstName: '',
+      lastName: '',
+    });
   }
 }

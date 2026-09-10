@@ -7,6 +7,8 @@ This is a full stack application setup to provide information on pokemon. You ca
 ## Getting Started
 
 1. Run `pn i`
-2. Run `pn start:dev` in the backend/pokedex-graphql folder
-3. Run `pn start:dev` in the backend/pokedex-rest folder
-4. Run `pn start:dev` in the frontend folder
+2. Run `pn docker:up` in the backend/pokedex-rest folder
+3. Run `pn start:dev` in the backend/auth folder
+4. Run `pn start:dev` in the backend/pokedex-rest folder
+5. Run `pn start:dev` in the backend/pokedex-graphql folder
+6. Run `pn start:dev` in the frontend folder

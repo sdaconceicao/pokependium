@@ -11,9 +11,9 @@ import {
   type Mocked,
   vi,
 } from 'vitest';
+import { AccountEntity } from '../accounts/accounts.entity';
+import { AccountsService } from '../accounts/accounts.service';
 import { MailService } from '../mail/mail.service';
-import { UserEntity } from '../users/users.entity';
-import { UsersService } from '../users/users.service';
 import { AuthService } from './auth.service';
 import { RegisterRequestDto } from './dtos/register-request.dto';
 
@@ -27,18 +27,15 @@ import * as bcrypt from 'bcrypt';
 
 describe('AuthService', () => {
   let service: AuthService;
-  let usersService: Mocked<UsersService>;
+  let accountsService: Mocked<AccountsService>;
   let jwtService: Mocked<JwtService>;
   let configService: Mocked<ConfigService>;
   let mailService: Mocked<MailService>;
 
-  const mockUser: UserEntity = {
+  const mockUser: AccountEntity = {
     id: 'user-123',
-    username: 'test@example.com',
     email: 'test@example.com',
     password: 'hashedPassword123',
-    firstName: '',
-    lastName: '',
     emailVerified: true,
     failedPasswordAttempts: 0,
     passwordLockedUntil: null,
@@ -63,7 +60,7 @@ describe('AuthService', () => {
       providers: [
         AuthService,
         {
-          provide: UsersService,
+          provide: AccountsService,
           useValue: {
             findOneByEmail: vi.fn(),
             create: vi.fn(),
@@ -97,7 +94,7 @@ describe('AuthService', () => {
     }).compile();
 
     service = module.get<AuthService>(AuthService);
-    usersService = module.get(UsersService);
+    accountsService = module.get(AccountsService);
     jwtService = module.get(JwtService);
     configService = module.get(ConfigService);
     mailService = module.get(MailService);
@@ -112,10 +109,13 @@ describe('AuthService', () => {
    * mock has to answer per key rather than returning one value for all of them.
    */
   const mockConfigGet = (ttl: string | undefined) =>
-    configService.get.mockImplementation(
-      (key: string) =>
-        (key === 'ALLOWED_ORIGINS' ? ALLOWED_ORIGINS : ttl) as never,
-    );
+    configService.get.mockImplementation((key: string) => {
+      if (key === 'ALLOWED_ORIGINS') return ALLOWED_ORIGINS as never;
+      if (key === 'PRODUCT_NAME') return 'TestApp' as never;
+      if (key === 'AUTH_VERIFY_EMAIL_PATH') return '/verify-email' as never;
+      if (key === 'AUTH_RESET_PASSWORD_PATH') return '/reset-password' as never;
+      return ttl as never;
+    });
 
   describe('validateUser', () => {
     it('should be defined', () => {
@@ -135,7 +135,7 @@ describe('AuthService', () => {
       });
 
       it('refuses a locked account without checking the password', async () => {
-        usersService.findOneByEmail.mockResolvedValue({
+        accountsService.findOneByEmail.mockResolvedValue({
           ...mockUser,
           failedPasswordAttempts: 5,
           passwordLockedUntil: new Date(NOW.getTime() + 60_000),
@@ -148,11 +148,11 @@ describe('AuthService', () => {
         });
 
         expect(bcrypt.compareSync).not.toHaveBeenCalled();
-        expect(usersService.update).not.toHaveBeenCalled();
+        expect(accountsService.update).not.toHaveBeenCalled();
       });
 
       it('counts a wrong password on the login path too', async () => {
-        usersService.findOneByEmail.mockResolvedValue({
+        accountsService.findOneByEmail.mockResolvedValue({
           ...mockUser,
           failedPasswordAttempts: 2,
         });
@@ -162,15 +162,13 @@ describe('AuthService', () => {
           service.validateUser(mockUser.email, 'wrong'),
         ).rejects.toThrow(new BadRequestException('Password does not match'));
 
-        expect(usersService.recordFailedPasswordAttempt).toHaveBeenCalledWith(
-          mockUser.id,
-          5,
-          15 * 60 * 1000,
-        );
+        expect(
+          accountsService.recordFailedPasswordAttempt,
+        ).toHaveBeenCalledWith(mockUser.id, 5, 15 * 60 * 1000);
       });
 
       it('starts a fresh streak after the lock window expires on a wrong password', async () => {
-        usersService.findOneByEmail.mockResolvedValue({
+        accountsService.findOneByEmail.mockResolvedValue({
           ...mockUser,
           failedPasswordAttempts: 5,
           passwordLockedUntil: new Date(NOW.getTime() - 1),
@@ -181,16 +179,14 @@ describe('AuthService', () => {
           service.validateUser(mockUser.email, 'wrong'),
         ).rejects.toThrow(new BadRequestException('Password does not match'));
 
-        expect(usersService.recordFailedPasswordAttempt).toHaveBeenCalledWith(
-          mockUser.id,
-          5,
-          15 * 60 * 1000,
-        );
-        expect(usersService.update).not.toHaveBeenCalled();
+        expect(
+          accountsService.recordFailedPasswordAttempt,
+        ).toHaveBeenCalledWith(mockUser.id, 5, 15 * 60 * 1000);
+        expect(accountsService.update).not.toHaveBeenCalled();
       });
 
       it('clears an accumulated streak on a successful login', async () => {
-        usersService.findOneByEmail.mockResolvedValue({
+        accountsService.findOneByEmail.mockResolvedValue({
           ...mockUser,
           failedPasswordAttempts: 3,
         });
@@ -198,23 +194,23 @@ describe('AuthService', () => {
 
         await service.validateUser(mockUser.email, 'password123');
 
-        expect(usersService.update).toHaveBeenCalledWith(mockUser.id, {
+        expect(accountsService.update).toHaveBeenCalledWith(mockUser.id, {
           failedPasswordAttempts: 0,
           passwordLockedUntil: null,
         });
       });
 
       it('writes nothing when a successful login had no streak to clear', async () => {
-        usersService.findOneByEmail.mockResolvedValue(mockUser);
+        accountsService.findOneByEmail.mockResolvedValue(mockUser);
         vi.mocked(bcrypt.compareSync).mockReturnValue(true);
 
         await service.validateUser(mockUser.email, 'password123');
 
-        expect(usersService.update).not.toHaveBeenCalled();
+        expect(accountsService.update).not.toHaveBeenCalled();
       });
 
       it('lets a login through once the window has passed', async () => {
-        usersService.findOneByEmail.mockResolvedValue({
+        accountsService.findOneByEmail.mockResolvedValue({
           ...mockUser,
           failedPasswordAttempts: 5,
           passwordLockedUntil: new Date(NOW.getTime() - 1),
@@ -234,12 +230,12 @@ describe('AuthService', () => {
       const email = 'test@example.com';
       const password = 'password123';
 
-      usersService.findOneByEmail.mockResolvedValue(mockUser);
+      accountsService.findOneByEmail.mockResolvedValue(mockUser);
       vi.mocked(bcrypt.compareSync).mockReturnValue(true);
 
       const result = await service.validateUser(email, password);
 
-      expect(usersService.findOneByEmail).toHaveBeenCalledWith(email);
+      expect(accountsService.findOneByEmail).toHaveBeenCalledWith(email);
       expect(bcrypt.compareSync).toHaveBeenCalledWith(
         password,
         mockUser.password,
@@ -248,7 +244,7 @@ describe('AuthService', () => {
     });
 
     it('rejects a verified-credentials login when the email is unverified', async () => {
-      usersService.findOneByEmail.mockResolvedValue({
+      accountsService.findOneByEmail.mockResolvedValue({
         ...mockUser,
         emailVerified: false,
       });
@@ -260,7 +256,7 @@ describe('AuthService', () => {
     });
 
     it('reports a password failure before an unverified failure', async () => {
-      usersService.findOneByEmail.mockResolvedValue({
+      accountsService.findOneByEmail.mockResolvedValue({
         ...mockUser,
         emailVerified: false,
       });
@@ -277,27 +273,27 @@ describe('AuthService', () => {
       const email = 'nonexistent@example.com';
       const password = 'password123';
 
-      usersService.findOneByEmail.mockResolvedValue(null);
+      accountsService.findOneByEmail.mockResolvedValue(null);
 
       await expect(service.validateUser(email, password)).rejects.toThrow(
         new BadRequestException('User not found'),
       );
 
-      expect(usersService.findOneByEmail).toHaveBeenCalledWith(email);
+      expect(accountsService.findOneByEmail).toHaveBeenCalledWith(email);
     });
 
     it('should throw BadRequestException when password does not match', async () => {
       const email = 'test@example.com';
       const password = 'wrongpassword';
 
-      usersService.findOneByEmail.mockResolvedValue(mockUser);
+      accountsService.findOneByEmail.mockResolvedValue(mockUser);
       vi.mocked(bcrypt.compareSync).mockReturnValue(false);
 
       await expect(service.validateUser(email, password)).rejects.toThrow(
         new BadRequestException('Password does not match'),
       );
 
-      expect(usersService.findOneByEmail).toHaveBeenCalledWith(email);
+      expect(accountsService.findOneByEmail).toHaveBeenCalledWith(email);
       expect(bcrypt.compareSync).toHaveBeenCalledWith(
         password,
         mockUser.password,
@@ -329,9 +325,9 @@ describe('AuthService', () => {
         emailVerified: false,
       };
 
-      usersService.findOneByEmail.mockResolvedValue(null);
+      accountsService.findOneByEmail.mockResolvedValue(null);
       vi.mocked(bcrypt.hash).mockResolvedValue(hashedPassword as never);
-      usersService.create.mockResolvedValue(createdUser);
+      accountsService.create.mockResolvedValue(createdUser);
       jwtService.signAsync.mockResolvedValue('verify-token-123');
       mailService.send.mockResolvedValue({ ok: true, id: 'resend-1' });
       configService.getOrThrow.mockImplementation(
@@ -345,15 +341,12 @@ describe('AuthService', () => {
 
       const result = await service.register(mockRegisterDto);
 
-      expect(usersService.findOneByEmail).toHaveBeenCalledWith(
+      expect(accountsService.findOneByEmail).toHaveBeenCalledWith(
         mockRegisterDto.email,
       );
       expect(bcrypt.hash).toHaveBeenCalledWith(mockRegisterDto.password, 10);
-      expect(usersService.create).toHaveBeenCalledWith({
-        ...mockRegisterDto,
-        username: mockRegisterDto.email,
-        firstName: '',
-        lastName: '',
+      expect(accountsService.create).toHaveBeenCalledWith({
+        email: mockRegisterDto.email,
         password: hashedPassword,
       });
       // Keyed on email + the row's unverified state, so using the link
@@ -378,21 +371,22 @@ describe('AuthService', () => {
     });
 
     it('mails an already-registered notice and replies identically', async () => {
-      usersService.findOneByEmail.mockResolvedValue(mockUser);
+      mockConfigGet(undefined);
+      accountsService.findOneByEmail.mockResolvedValue(mockUser);
 
       const result = await service.register(mockRegisterDto);
 
       expect(mailService.send).toHaveBeenCalledWith(
         expect.objectContaining({
           to: mockUser.email,
-          subject: 'You already have a Pokédex account',
+          subject: 'You already have a TestApp account',
         }),
       );
       // The notice must not carry a reset token: the request came from an
       // unauthenticated stranger.
       const sent = mailService.send.mock.calls[0][0];
       expect(sent.html).not.toContain('reset-password?token=');
-      expect(usersService.create).not.toHaveBeenCalled();
+      expect(accountsService.create).not.toHaveBeenCalled();
       expect(bcrypt.hash).not.toHaveBeenCalled();
       expect(result).toEqual(SUBMITTED);
     });
@@ -417,7 +411,7 @@ describe('AuthService', () => {
 
     it('falls back to a 15 minute expiry when the TTL is unset', async () => {
       mockConfigGet(undefined);
-      usersService.findOneByEmail.mockResolvedValue(mockUser);
+      accountsService.findOneByEmail.mockResolvedValue(mockUser);
       jwtService.signAsync.mockResolvedValue('reset-token-123');
       mailService.send.mockResolvedValue({ ok: true, id: 'resend-1' });
 
@@ -431,7 +425,7 @@ describe('AuthService', () => {
     });
 
     it('signs a token against the current hash and mails the link', async () => {
-      usersService.findOneByEmail.mockResolvedValue(mockUser);
+      accountsService.findOneByEmail.mockResolvedValue(mockUser);
       jwtService.signAsync.mockResolvedValue('reset-token-123');
       mailService.send.mockResolvedValue({ ok: true, id: 'resend-1' });
 
@@ -453,7 +447,7 @@ describe('AuthService', () => {
     });
 
     it('builds the link from an allow-listed preview origin', async () => {
-      usersService.findOneByEmail.mockResolvedValue(mockUser);
+      accountsService.findOneByEmail.mockResolvedValue(mockUser);
       jwtService.signAsync.mockResolvedValue('reset-token-123');
       mailService.send.mockResolvedValue({ ok: true, id: 'resend-1' });
 
@@ -477,7 +471,7 @@ describe('AuthService', () => {
         }
         return 'test-secret' as never;
       });
-      usersService.findOneByEmail.mockResolvedValue(mockUser);
+      accountsService.findOneByEmail.mockResolvedValue(mockUser);
       jwtService.signAsync.mockResolvedValue('reset-token-123');
       mailService.send.mockResolvedValue({ ok: true, id: 'resend-1' });
 
@@ -487,7 +481,7 @@ describe('AuthService', () => {
     });
 
     it('ignores an origin that is not allow-listed', async () => {
-      usersService.findOneByEmail.mockResolvedValue(mockUser);
+      accountsService.findOneByEmail.mockResolvedValue(mockUser);
       jwtService.signAsync.mockResolvedValue('reset-token-123');
       mailService.send.mockResolvedValue({ ok: true, id: 'resend-1' });
 
@@ -507,7 +501,7 @@ describe('AuthService', () => {
     });
 
     it('returns the same message and sends nothing for an unknown address', async () => {
-      usersService.findOneByEmail.mockResolvedValue(null);
+      accountsService.findOneByEmail.mockResolvedValue(null);
 
       const result = await service.requestPasswordReset('nobody@example.com');
 
@@ -517,7 +511,7 @@ describe('AuthService', () => {
     });
 
     it('returns the same message when the send fails', async () => {
-      usersService.findOneByEmail.mockResolvedValue(mockUser);
+      accountsService.findOneByEmail.mockResolvedValue(mockUser);
       jwtService.signAsync.mockResolvedValue('reset-token-123');
       mailService.send.mockResolvedValue({ ok: false, error: 'mail disabled' });
 
@@ -538,10 +532,10 @@ describe('AuthService', () => {
 
     it('verifies against the current hash, then rotates the password', async () => {
       jwtService.decode.mockReturnValue({ userId: mockUser.id });
-      usersService.findOneById.mockResolvedValue(mockUser);
+      accountsService.findOneById.mockResolvedValue(mockUser);
       jwtService.verifyAsync.mockResolvedValue({ userId: mockUser.id });
       vi.mocked(bcrypt.hash).mockResolvedValue('newHash' as never);
-      usersService.update.mockResolvedValue({
+      accountsService.update.mockResolvedValue({
         ...mockUser,
         password: 'newHash',
       });
@@ -556,7 +550,7 @@ describe('AuthService', () => {
       expect(jwtService.verifyAsync).toHaveBeenCalledWith('reset-token-123', {
         secret: `test-secret${mockUser.password}`,
       });
-      expect(usersService.update).toHaveBeenCalledWith(mockUser.id, {
+      expect(accountsService.update).toHaveBeenCalledWith(mockUser.id, {
         password: 'newHash',
         emailVerified: true,
         failedPasswordAttempts: 0,
@@ -571,12 +565,12 @@ describe('AuthService', () => {
       await expect(
         service.confirmPasswordReset('garbage', 'Pikachu123!'),
       ).rejects.toThrow(INVALID_TOKEN);
-      expect(usersService.findOneById).not.toHaveBeenCalled();
+      expect(accountsService.findOneById).not.toHaveBeenCalled();
     });
 
     it('rejects a token naming an unknown user with the same error', async () => {
       jwtService.decode.mockReturnValue({ userId: 'ghost-123' });
-      usersService.findOneById.mockResolvedValue(null);
+      accountsService.findOneById.mockResolvedValue(null);
 
       await expect(
         service.confirmPasswordReset('reset-token-123', 'Pikachu123!'),
@@ -585,21 +579,21 @@ describe('AuthService', () => {
 
     it('rejects an expired, tampered, or already-spent token', async () => {
       jwtService.decode.mockReturnValue({ userId: mockUser.id });
-      usersService.findOneById.mockResolvedValue(mockUser);
+      accountsService.findOneById.mockResolvedValue(mockUser);
       jwtService.verifyAsync.mockRejectedValue(new Error('jwt expired'));
 
       await expect(
         service.confirmPasswordReset('reset-token-123', 'Pikachu123!'),
       ).rejects.toThrow(INVALID_TOKEN);
-      expect(usersService.update).not.toHaveBeenCalled();
+      expect(accountsService.update).not.toHaveBeenCalled();
     });
 
     it('rejects when the password write reports no row updated', async () => {
       jwtService.decode.mockReturnValue({ userId: mockUser.id });
-      usersService.findOneById.mockResolvedValue(mockUser);
+      accountsService.findOneById.mockResolvedValue(mockUser);
       jwtService.verifyAsync.mockResolvedValue({ userId: mockUser.id });
       vi.mocked(bcrypt.hash).mockResolvedValue('newHash' as never);
-      usersService.update.mockResolvedValue(null);
+      accountsService.update.mockResolvedValue(null);
 
       await expect(
         service.confirmPasswordReset('reset-token-123', 'Pikachu123!'),
@@ -619,9 +613,9 @@ describe('AuthService', () => {
 
     it('flips the flag against the unverified key, then signs the user in', async () => {
       jwtService.decode.mockReturnValue({ userId: unverified.id });
-      usersService.findOneById.mockResolvedValue(unverified);
+      accountsService.findOneById.mockResolvedValue(unverified);
       jwtService.verifyAsync.mockResolvedValue({ userId: unverified.id });
-      usersService.update.mockResolvedValue(mockUser);
+      accountsService.update.mockResolvedValue(mockUser);
       jwtService.signAsync.mockResolvedValue('access-token-123');
 
       const result = await service.confirmEmailVerification('verify-token-123');
@@ -630,7 +624,7 @@ describe('AuthService', () => {
       expect(jwtService.verifyAsync).toHaveBeenCalledWith('verify-token-123', {
         secret: `test-secret${unverified.email}false`,
       });
-      expect(usersService.update).toHaveBeenCalledWith(unverified.id, {
+      expect(accountsService.update).toHaveBeenCalledWith(unverified.id, {
         emailVerified: true,
       });
       expect(result).toEqual({ access_token: 'access-token-123' });
@@ -642,19 +636,19 @@ describe('AuthService', () => {
       await expect(service.confirmEmailVerification('garbage')).rejects.toThrow(
         INVALID_LINK,
       );
-      expect(usersService.findOneById).not.toHaveBeenCalled();
+      expect(accountsService.findOneById).not.toHaveBeenCalled();
     });
 
     it('rejects a reused link with the same error', async () => {
       // Already verified, so the key no longer matches what signed the token.
       jwtService.decode.mockReturnValue({ userId: mockUser.id });
-      usersService.findOneById.mockResolvedValue(mockUser);
+      accountsService.findOneById.mockResolvedValue(mockUser);
       jwtService.verifyAsync.mockRejectedValue(new Error('invalid signature'));
 
       await expect(
         service.confirmEmailVerification('verify-token-123'),
       ).rejects.toThrow(INVALID_LINK);
-      expect(usersService.update).not.toHaveBeenCalled();
+      expect(accountsService.update).not.toHaveBeenCalled();
     });
   });
 
@@ -673,7 +667,7 @@ describe('AuthService', () => {
     });
 
     it('resends the link instead of erroring, leaving the password alone', async () => {
-      usersService.findOneByEmail.mockResolvedValue(unverified);
+      accountsService.findOneByEmail.mockResolvedValue(unverified);
       jwtService.signAsync.mockResolvedValue('verify-token-789');
       mailService.send.mockResolvedValue({ ok: true, id: 'resend-1' });
 
@@ -689,14 +683,14 @@ describe('AuthService', () => {
       );
       // Neither a new row nor a password write: honouring the submitted
       // password would let a guesser overwrite the real owner's credentials.
-      expect(usersService.create).not.toHaveBeenCalled();
-      expect(usersService.update).not.toHaveBeenCalled();
+      expect(accountsService.create).not.toHaveBeenCalled();
+      expect(accountsService.update).not.toHaveBeenCalled();
       expect(bcrypt.hash).not.toHaveBeenCalled();
       expect(result).toEqual(SUBMITTED);
     });
 
     it('builds the verification link from an allow-listed preview origin', async () => {
-      usersService.findOneByEmail.mockResolvedValue(unverified);
+      accountsService.findOneByEmail.mockResolvedValue(unverified);
       jwtService.signAsync.mockResolvedValue('verify-token-789');
       mailService.send.mockResolvedValue({ ok: true, id: 'resend-1' });
 
@@ -712,7 +706,7 @@ describe('AuthService', () => {
     });
 
     it('ignores an origin that is not allow-listed', async () => {
-      usersService.findOneByEmail.mockResolvedValue(unverified);
+      accountsService.findOneByEmail.mockResolvedValue(unverified);
       jwtService.signAsync.mockResolvedValue('verify-token-789');
       mailService.send.mockResolvedValue({ ok: true, id: 'resend-1' });
 
@@ -726,14 +720,14 @@ describe('AuthService', () => {
     });
 
     it('replies the same for unverified, verified, and unknown addresses', async () => {
-      usersService.findOneByEmail.mockResolvedValue(unverified);
+      accountsService.findOneByEmail.mockResolvedValue(unverified);
       const unverifiedReply = await service.register(mockRegisterDto);
 
-      usersService.findOneByEmail.mockResolvedValue(mockUser);
+      accountsService.findOneByEmail.mockResolvedValue(mockUser);
       const verifiedReply = await service.register(mockRegisterDto);
 
-      usersService.findOneByEmail.mockResolvedValue(null);
-      usersService.create.mockResolvedValue(mockUser);
+      accountsService.findOneByEmail.mockResolvedValue(null);
+      accountsService.create.mockResolvedValue(mockUser);
       const newReply = await service.register(mockRegisterDto);
 
       // Three different emails, one indistinguishable response.
@@ -746,11 +740,11 @@ describe('AuthService', () => {
     const UNABLE = new BadRequestException('Unable to change password');
 
     it('verifies the current password, then rotates the hash', async () => {
-      usersService.findOneById.mockResolvedValue(mockUser);
-      usersService.findOneByEmail.mockResolvedValue(mockUser);
+      accountsService.findOneById.mockResolvedValue(mockUser);
+      accountsService.findOneByEmail.mockResolvedValue(mockUser);
       vi.mocked(bcrypt.compareSync).mockReturnValue(true as never);
       vi.mocked(bcrypt.hash).mockResolvedValue('newHash' as never);
-      usersService.update.mockResolvedValue({
+      accountsService.update.mockResolvedValue({
         ...mockUser,
         password: 'newHash',
       });
@@ -766,7 +760,7 @@ describe('AuthService', () => {
         mockUser.password,
       );
       // Unlike a reset, this does not set emailVerified.
-      expect(usersService.update).toHaveBeenCalledWith(mockUser.id, {
+      expect(accountsService.update).toHaveBeenCalledWith(mockUser.id, {
         password: 'newHash',
         failedPasswordAttempts: 0,
         passwordLockedUntil: null,
@@ -775,23 +769,23 @@ describe('AuthService', () => {
     });
 
     it('rejects a token naming a user who no longer exists', async () => {
-      usersService.findOneById.mockResolvedValue(null);
+      accountsService.findOneById.mockResolvedValue(null);
 
       await expect(
         service.changePassword('ghost-123', 'OldPikachu123!', 'NewPikachu123!'),
       ).rejects.toThrow(UNABLE);
-      expect(usersService.update).not.toHaveBeenCalled();
+      expect(accountsService.update).not.toHaveBeenCalled();
     });
 
     it('rejects a wrong current password and counts the attempt', async () => {
-      usersService.findOneById.mockResolvedValue(mockUser);
+      accountsService.findOneById.mockResolvedValue(mockUser);
       vi.mocked(bcrypt.compareSync).mockReturnValue(false as never);
 
       await expect(
         service.changePassword(mockUser.id, 'wrong', 'NewPikachu123!'),
       ).rejects.toThrow(new BadRequestException('Password does not match'));
 
-      expect(usersService.recordFailedPasswordAttempt).toHaveBeenCalledWith(
+      expect(accountsService.recordFailedPasswordAttempt).toHaveBeenCalledWith(
         mockUser.id,
         5,
         15 * 60 * 1000,
@@ -800,11 +794,11 @@ describe('AuthService', () => {
     });
 
     it('rejects when the password write reports no row updated', async () => {
-      usersService.findOneById.mockResolvedValue(mockUser);
-      usersService.findOneByEmail.mockResolvedValue(mockUser);
+      accountsService.findOneById.mockResolvedValue(mockUser);
+      accountsService.findOneByEmail.mockResolvedValue(mockUser);
       vi.mocked(bcrypt.compareSync).mockReturnValue(true as never);
       vi.mocked(bcrypt.hash).mockResolvedValue('newHash' as never);
-      usersService.update.mockResolvedValue(null);
+      accountsService.update.mockResolvedValue(null);
 
       await expect(
         service.changePassword(mockUser.id, 'OldPikachu123!', 'NewPikachu123!'),
@@ -824,7 +818,7 @@ describe('AuthService', () => {
       });
 
       it('arms a 15-minute window on the fifth consecutive wrong guess', async () => {
-        usersService.findOneById.mockResolvedValue({
+        accountsService.findOneById.mockResolvedValue({
           ...mockUser,
           failedPasswordAttempts: 4,
         });
@@ -834,15 +828,13 @@ describe('AuthService', () => {
           service.changePassword(mockUser.id, 'wrong', 'NewPikachu123!'),
         ).rejects.toThrow(BadRequestException);
 
-        expect(usersService.recordFailedPasswordAttempt).toHaveBeenCalledWith(
-          mockUser.id,
-          5,
-          15 * 60 * 1000,
-        );
+        expect(
+          accountsService.recordFailedPasswordAttempt,
+        ).toHaveBeenCalledWith(mockUser.id, 5, 15 * 60 * 1000);
       });
 
       it('leaves the window unarmed below the threshold', async () => {
-        usersService.findOneById.mockResolvedValue({
+        accountsService.findOneById.mockResolvedValue({
           ...mockUser,
           failedPasswordAttempts: 3,
         });
@@ -852,15 +844,13 @@ describe('AuthService', () => {
           service.changePassword(mockUser.id, 'wrong', 'NewPikachu123!'),
         ).rejects.toThrow(BadRequestException);
 
-        expect(usersService.recordFailedPasswordAttempt).toHaveBeenCalledWith(
-          mockUser.id,
-          5,
-          15 * 60 * 1000,
-        );
+        expect(
+          accountsService.recordFailedPasswordAttempt,
+        ).toHaveBeenCalledWith(mockUser.id, 5, 15 * 60 * 1000);
       });
 
       it('refuses while locked, without checking the password at all', async () => {
-        usersService.findOneById.mockResolvedValue({
+        accountsService.findOneById.mockResolvedValue({
           ...mockUser,
           failedPasswordAttempts: 5,
           passwordLockedUntil: new Date(NOW.getTime() + 60_000),
@@ -878,11 +868,11 @@ describe('AuthService', () => {
         });
 
         expect(bcrypt.compareSync).not.toHaveBeenCalled();
-        expect(usersService.update).not.toHaveBeenCalled();
+        expect(accountsService.update).not.toHaveBeenCalled();
       });
 
       it('starts a fresh streak after the lock window expires on a wrong password', async () => {
-        usersService.findOneById.mockResolvedValue({
+        accountsService.findOneById.mockResolvedValue({
           ...mockUser,
           failedPasswordAttempts: 5,
           passwordLockedUntil: new Date(NOW.getTime() - 1),
@@ -893,23 +883,21 @@ describe('AuthService', () => {
           service.changePassword(mockUser.id, 'wrong', 'NewPikachu123!'),
         ).rejects.toThrow(BadRequestException);
 
-        expect(usersService.recordFailedPasswordAttempt).toHaveBeenCalledWith(
-          mockUser.id,
-          5,
-          15 * 60 * 1000,
-        );
-        expect(usersService.update).not.toHaveBeenCalled();
+        expect(
+          accountsService.recordFailedPasswordAttempt,
+        ).toHaveBeenCalledWith(mockUser.id, 5, 15 * 60 * 1000);
+        expect(accountsService.update).not.toHaveBeenCalled();
       });
 
       it('lets the correct password through once the window has passed', async () => {
-        usersService.findOneById.mockResolvedValue({
+        accountsService.findOneById.mockResolvedValue({
           ...mockUser,
           failedPasswordAttempts: 5,
           passwordLockedUntil: new Date(NOW.getTime() - 1),
         });
         vi.mocked(bcrypt.compareSync).mockReturnValue(true as never);
         vi.mocked(bcrypt.hash).mockResolvedValue('newHash' as never);
-        usersService.update.mockResolvedValue(mockUser);
+        accountsService.update.mockResolvedValue(mockUser);
 
         const result = await service.changePassword(
           mockUser.id,
@@ -918,7 +906,7 @@ describe('AuthService', () => {
         );
 
         expect(result).toEqual({ message: 'Password updated' });
-        expect(usersService.update).toHaveBeenCalledWith(mockUser.id, {
+        expect(accountsService.update).toHaveBeenCalledWith(mockUser.id, {
           password: 'newHash',
           failedPasswordAttempts: 0,
           passwordLockedUntil: null,

@@ -57,17 +57,15 @@ export class UsersController {
   })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
   async getUser(@Req() req: AuthenticatedRequest): Promise<UserResponseDto> {
-    // Fetch the complete user data from the database using the ID from JWT
-    const user = await this.usersService.findOneById(req.user.userId);
-    if (!user) {
-      throw new Error('User not found');
-    }
+    const user = await this.usersService.ensureProfile(
+      req.user.userId,
+      req.user.email,
+    );
 
-    // Return the complete user entity (excluding password) plus JWT fields
     return {
       id: user.id,
       username: user.username,
-      email: user.email,
+      email: req.user.email,
       firstName: user.firstName,
       lastName: user.lastName,
       iat: req.user.iat,

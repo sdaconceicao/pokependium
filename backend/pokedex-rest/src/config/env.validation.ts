@@ -1,9 +1,8 @@
 /**
- * Vars the app refuses to start without. Checked at boot because both are read
- * lazily — FRONTEND_BASE_URL only when an email goes out — so a deploy missing
- * one would pass its health check and fail later, on a password reset request.
+ * Vars the app refuses to start without. JWT_SECRET must match the auth
+ * service that issues access tokens.
  */
-const REQUIRED_ENV_VARS = ['JWT_SECRET', 'FRONTEND_BASE_URL'] as const;
+const REQUIRED_ENV_VARS = ['JWT_SECRET'] as const;
 
 export const validateEnv = (
   config: Record<string, unknown>,

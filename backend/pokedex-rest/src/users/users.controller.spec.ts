@@ -13,13 +13,8 @@ const USER_ID = 'user-123';
 const mockUser: UserEntity = {
   id: USER_ID,
   username: 'ash@pallet.town',
-  email: 'ash@pallet.town',
-  password: 'hashed',
   firstName: '',
   lastName: '',
-  emailVerified: true,
-  failedPasswordAttempts: 0,
-  passwordLockedUntil: null,
 };
 
 const PNG = Buffer.concat([
@@ -30,7 +25,7 @@ const PNG = Buffer.concat([
 /** A request carrying the JWT payload, plus an optional multipart part. */
 const request = (file?: () => Promise<unknown>): ControllerRequest =>
   ({
-    user: { userId: USER_ID, email: mockUser.email, iat: 1, exp: 2 },
+    user: { userId: USER_ID, email: 'ash@pallet.town', iat: 1, exp: 2 },
     file,
   }) as unknown as ControllerRequest;
 
@@ -45,7 +40,7 @@ describe('UsersController', () => {
       providers: [
         {
           provide: UsersService,
-          useValue: { findOneById: vi.fn() },
+          useValue: { ensureProfile: vi.fn() },
         },
         {
           provide: AvatarsService,
@@ -65,14 +60,18 @@ describe('UsersController', () => {
 
   describe('getUser', () => {
     it('returns the profile with the token timestamps', async () => {
-      usersService.findOneById.mockResolvedValue(mockUser);
+      usersService.ensureProfile.mockResolvedValue(mockUser);
 
       const result = await controller.getUser(request());
 
+      expect(usersService.ensureProfile).toHaveBeenCalledWith(
+        USER_ID,
+        mockUser.username,
+      );
       expect(result).toEqual({
         id: USER_ID,
         username: mockUser.username,
-        email: mockUser.email,
+        email: mockUser.username,
         firstName: '',
         lastName: '',
         iat: 1,
@@ -81,12 +80,19 @@ describe('UsersController', () => {
       expect(result).not.toHaveProperty('password');
     });
 
-    it('throws when the token names a user who no longer exists', async () => {
-      usersService.findOneById.mockResolvedValue(null);
+    it('upserts a profile when the token names a new account', async () => {
+      const created = {
+        id: USER_ID,
+        username: 'ash@pallet.town',
+        firstName: '',
+        lastName: '',
+      };
+      usersService.ensureProfile.mockResolvedValue(created);
 
-      await expect(controller.getUser(request())).rejects.toThrow(
-        'User not found',
-      );
+      const result = await controller.getUser(request());
+
+      expect(result.email).toBe('ash@pallet.town');
+      expect(result.id).toBe(USER_ID);
     });
   });
 

@@ -7,6 +7,8 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { AccountEntity } from '../accounts/accounts.entity';
+import { AccountsService } from '../accounts/accounts.service';
 import {
   isAllowedOrigin,
   parseAllowedOrigins,
@@ -15,8 +17,6 @@ import { MailService } from '../mail/mail.service';
 import { buildAlreadyRegisteredMessage } from '../mail/templates/already-registered.template';
 import { buildEmailVerificationMessage } from '../mail/templates/email-verification.template';
 import { buildPasswordResetMessage } from '../mail/templates/password-reset.template';
-import { UserEntity } from '../users/users.entity';
-import { UsersService } from '../users/users.service';
 import { ChangePasswordResponseDTO } from './dtos/change-password-response.dto';
 import { PasswordResetResponseDTO } from './dtos/password-reset-response.dto';
 import { RegisterRequestDto } from './dtos/register-request.dto';
@@ -53,10 +53,13 @@ const PASSWORD_LOCKOUT_MS = 15 * 60 * 1000;
 
 const PASSWORD_LOCKED_MESSAGE = 'Too many incorrect attempts. Try again later';
 
+const DEFAULT_VERIFY_PATH = '/verify-email';
+const DEFAULT_RESET_PATH = '/reset-password';
+
 @Injectable()
 export class AuthService {
   constructor(
-    private usersService: UsersService,
+    private accountsService: AccountsService,
     private jwtService: JwtService,
     private configService: ConfigService,
     private mailService: MailService,
@@ -67,8 +70,8 @@ export class AuthService {
    * password hash. Completing a reset changes the hash, so every outstanding
    * token for that user stops verifying — single-use without a token table.
    */
-  private resetTokenSecret(user: UserEntity): string {
-    return `${this.configService.getOrThrow<string>('JWT_SECRET')}${user.password}`;
+  private resetTokenSecret(account: AccountEntity): string {
+    return `${this.configService.getOrThrow<string>('JWT_SECRET')}${account.password}`;
   }
 
   /**
@@ -90,34 +93,53 @@ export class AuthService {
       : this.configService.getOrThrow<string>('FRONTEND_BASE_URL');
   }
 
+  private productName(): string {
+    return this.configService.get<string>('PRODUCT_NAME')?.trim() || 'Account';
+  }
+
+  private verifyEmailPath(): string {
+    return (
+      this.configService.get<string>('AUTH_VERIFY_EMAIL_PATH')?.trim() ||
+      DEFAULT_VERIFY_PATH
+    );
+  }
+
+  private resetPasswordPath(): string {
+    return (
+      this.configService.get<string>('AUTH_RESET_PASSWORD_PATH')?.trim() ||
+      DEFAULT_RESET_PATH
+    );
+  }
+
   async requestPasswordReset(
     email: string,
     requestOrigin?: string,
   ): Promise<PasswordResetResponseDTO> {
-    const user = await this.usersService.findOneByEmail(email);
+    const account = await this.accountsService.findOneByEmail(email);
 
-    if (user) {
+    if (account) {
       const expirySeconds = parseInt(
         this.configService.get<string>(
           'PASSWORD_RESET_TOKEN_VALIDITY_DURATION_IN_SEC',
         ) ?? '900',
         10,
       );
-      const payload: PasswordResetTokenPayload = { userId: user.id };
+      const payload: PasswordResetTokenPayload = { userId: account.id };
       const token = await this.jwtService.signAsync(payload, {
-        secret: this.resetTokenSecret(user),
+        secret: this.resetTokenSecret(account),
         expiresIn: expirySeconds,
       });
       const baseUrl = this.resolveFrontendBaseUrl(requestOrigin);
-      const resetUrl = `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
+      const resetUrl = `${baseUrl}${this.resetPasswordPath()}?token=${encodeURIComponent(token)}`;
 
       // send() never throws and logs its own failures, so a mail outage
       // cannot change this endpoint's response.
       await this.mailService.send(
         buildPasswordResetMessage(
-          user.email,
+          account.email,
           resetUrl,
           Math.round(expirySeconds / 60),
+          this.productName(),
         ),
       );
     }
@@ -135,14 +157,16 @@ export class AuthService {
     const userId = this.jwtService.decode<PasswordResetTokenPayload | null>(
       token,
     )?.userId;
-    const user = userId ? await this.usersService.findOneById(userId) : null;
-    if (!user) {
+    const account = userId
+      ? await this.accountsService.findOneById(userId)
+      : null;
+    if (!account) {
       throw new BadRequestException(INVALID_RESET_TOKEN_MESSAGE);
     }
 
     try {
       await this.jwtService.verifyAsync(token, {
-        secret: this.resetTokenSecret(user),
+        secret: this.resetTokenSecret(account),
       });
     } catch {
       // Includes already-spent tokens: the hash they were signed against no
@@ -150,7 +174,7 @@ export class AuthService {
       throw new BadRequestException(INVALID_RESET_TOKEN_MESSAGE);
     }
 
-    const updated = await this.usersService.update(user.id, {
+    const updated = await this.accountsService.update(account.id, {
       password: await bcrypt.hash(password, 10),
       // Completing a reset means they read an email at this address, which is
       // exactly what verification proves — so don't strand them unverified.
@@ -172,14 +196,16 @@ export class AuthService {
     const userId = this.jwtService.decode<EmailVerificationTokenPayload | null>(
       token,
     )?.userId;
-    const user = userId ? await this.usersService.findOneById(userId) : null;
-    if (!user) {
+    const account = userId
+      ? await this.accountsService.findOneById(userId)
+      : null;
+    if (!account) {
       throw new BadRequestException(INVALID_VERIFICATION_TOKEN_MESSAGE);
     }
 
     try {
       await this.jwtService.verifyAsync(token, {
-        secret: this.verificationTokenSecret(user),
+        secret: this.verificationTokenSecret(account),
       });
     } catch {
       // Also covers a second click on the same link: the key embedded the old
@@ -188,7 +214,7 @@ export class AuthService {
       throw new BadRequestException(INVALID_VERIFICATION_TOKEN_MESSAGE);
     }
 
-    const updated = await this.usersService.update(user.id, {
+    const updated = await this.accountsService.update(account.id, {
       emailVerified: true,
     });
     if (!updated) {
@@ -207,12 +233,12 @@ export class AuthService {
     currentPassword: string,
     newPassword: string,
   ): Promise<ChangePasswordResponseDTO> {
-    const user = await this.usersService.findOneById(userId);
-    if (!user) {
+    const account = await this.accountsService.findOneById(userId);
+    if (!account) {
       throw new BadRequestException(INVALID_CREDENTIALS_MESSAGE);
     }
 
-    if (this.isPasswordLocked(user)) {
+    if (this.isPasswordLocked(account)) {
       throw new HttpException(
         PASSWORD_LOCKED_MESSAGE,
         HttpStatus.TOO_MANY_REQUESTS,
@@ -221,12 +247,12 @@ export class AuthService {
 
     // Not validateUser: that also throws for an unverified address, which must
     // not count as a password guess.
-    if (!bcrypt.compareSync(currentPassword, user.password)) {
-      await this.recordFailedPasswordAttempt(user);
+    if (!bcrypt.compareSync(currentPassword, account.password)) {
+      await this.recordFailedPasswordAttempt(account);
       throw new BadRequestException('Password does not match');
     }
 
-    const updated = await this.usersService.update(user.id, {
+    const updated = await this.accountsService.update(account.id, {
       password: await bcrypt.hash(newPassword, 10),
       failedPasswordAttempts: 0,
       passwordLockedUntil: null,
@@ -238,16 +264,18 @@ export class AuthService {
     return { message: PASSWORD_CHANGED_MESSAGE };
   }
 
-  private isPasswordLocked(user: UserEntity): boolean {
+  private isPasswordLocked(account: AccountEntity): boolean {
     return (
-      !!user.passwordLockedUntil &&
-      user.passwordLockedUntil.getTime() > Date.now()
+      !!account.passwordLockedUntil &&
+      account.passwordLockedUntil.getTime() > Date.now()
     );
   }
 
-  private async recordFailedPasswordAttempt(user: UserEntity): Promise<void> {
-    await this.usersService.recordFailedPasswordAttempt(
-      user.id,
+  private async recordFailedPasswordAttempt(
+    account: AccountEntity,
+  ): Promise<void> {
+    await this.accountsService.recordFailedPasswordAttempt(
+      account.id,
       MAX_FAILED_PASSWORD_ATTEMPTS,
       PASSWORD_LOCKOUT_MS,
     );
@@ -258,13 +286,13 @@ export class AuthService {
    * verified and its current state. Verifying flips emailVerified, and changing
    * the address changes the key — so a used or stale link stops verifying.
    */
-  private verificationTokenSecret(user: UserEntity): string {
+  private verificationTokenSecret(account: AccountEntity): string {
     const secret = this.configService.getOrThrow<string>('JWT_SECRET');
-    return `${secret}${user.email}${String(user.emailVerified)}`;
+    return `${secret}${account.email}${String(account.emailVerified)}`;
   }
 
   private async sendVerificationEmail(
-    user: UserEntity,
+    account: AccountEntity,
     requestOrigin?: string,
   ): Promise<void> {
     const expirySeconds = parseInt(
@@ -273,47 +301,48 @@ export class AuthService {
       ) ?? '86400',
       10,
     );
-    const payload: EmailVerificationTokenPayload = { userId: user.id };
+    const payload: EmailVerificationTokenPayload = { userId: account.id };
     const token = await this.jwtService.signAsync(payload, {
-      secret: this.verificationTokenSecret(user),
+      secret: this.verificationTokenSecret(account),
       expiresIn: expirySeconds,
     });
     const baseUrl = this.resolveFrontendBaseUrl(requestOrigin);
-    const verifyUrl = `${baseUrl}/verify-email?token=${encodeURIComponent(token)}`;
+    const verifyUrl = `${baseUrl}${this.verifyEmailPath()}?token=${encodeURIComponent(token)}`;
 
     await this.mailService.send(
       buildEmailVerificationMessage(
-        user.email,
+        account.email,
         verifyUrl,
         Math.round(expirySeconds / 3600),
+        this.productName(),
       ),
     );
   }
 
-  async validateUser(email: string, password: string): Promise<UserEntity> {
-    const user: UserEntity | null =
-      await this.usersService.findOneByEmail(email);
-    if (!user) {
+  async validateUser(email: string, password: string): Promise<AccountEntity> {
+    const account: AccountEntity | null =
+      await this.accountsService.findOneByEmail(email);
+    if (!account) {
       throw new BadRequestException('User not found');
     }
 
     // Unauthenticated, so this lockout is DoS-able; password reset is the escape hatch.
-    if (this.isPasswordLocked(user)) {
+    if (this.isPasswordLocked(account)) {
       throw new HttpException(
         PASSWORD_LOCKED_MESSAGE,
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
 
-    const isMatch: boolean = bcrypt.compareSync(password, user.password);
+    const isMatch: boolean = bcrypt.compareSync(password, account.password);
     if (!isMatch) {
-      await this.recordFailedPasswordAttempt(user);
+      await this.recordFailedPasswordAttempt(account);
       throw new BadRequestException('Password does not match');
     }
 
     // Skip the write when there is nothing to clear — login is the hot path.
-    if (user.failedPasswordAttempts > 0 || user.passwordLockedUntil) {
-      await this.usersService.update(user.id, {
+    if (account.failedPasswordAttempts > 0 || account.passwordLockedUntil) {
+      await this.accountsService.update(account.id, {
         failedPasswordAttempts: 0,
         passwordLockedUntil: null,
       });
@@ -321,31 +350,36 @@ export class AuthService {
 
     // Checked only after the password matches: otherwise a wrong password on
     // an unverified account would still confirm the address is registered.
-    if (!user.emailVerified) {
+    if (!account.emailVerified) {
       throw new BadRequestException('Email address not verified');
     }
-    return user;
+    return account;
   }
-  async login(user: UserEntity): Promise<AccessToken> {
-    const payload = { email: user.email, userId: user.id };
+  async login(account: AccountEntity): Promise<AccessToken> {
+    const payload = { email: account.email, userId: account.id };
     return { access_token: await this.jwtService.signAsync(payload) };
   }
   async register(
     user: RegisterRequestDto,
     requestOrigin?: string,
   ): Promise<RegisterResponseDTO> {
-    const existingUser = await this.usersService.findOneByEmail(user.email);
+    const existingAccount = await this.accountsService.findOneByEmail(
+      user.email,
+    );
 
-    if (existingUser) {
-      if (existingUser.emailVerified) {
+    if (existingAccount) {
+      if (existingAccount.emailVerified) {
         // Says "you already have an account" in the email, where only the
         // address owner can read it — never in the HTTP response.
         await this.mailService.send(
-          buildAlreadyRegisteredMessage(existingUser.email),
+          buildAlreadyRegisteredMessage(
+            existingAccount.email,
+            this.productName(),
+          ),
         );
       } else {
         // Unverified: resend the link so they can finish signing up.
-        await this.sendVerificationEmail(existingUser, requestOrigin);
+        await this.sendVerificationEmail(existingAccount, requestOrigin);
       }
 
       // Either way the submitted password is ignored: honouring it would let
@@ -354,16 +388,11 @@ export class AuthService {
     }
     const hashedPassword = await bcrypt.hash(user.password, 10);
 
-    const newUser = {
-      ...user,
-      firstName: '',
-      lastName: '',
-      username: user.email,
+    const createdAccount = await this.accountsService.create({
+      email: user.email,
       password: hashedPassword,
-    };
-
-    const createdUser = await this.usersService.create(newUser);
-    await this.sendVerificationEmail(createdUser, requestOrigin);
+    });
+    await this.sendVerificationEmail(createdAccount, requestOrigin);
     return { message: REGISTRATION_SUBMITTED_MESSAGE };
   }
 }

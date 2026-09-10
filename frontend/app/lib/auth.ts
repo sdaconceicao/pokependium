@@ -14,7 +14,8 @@ import type {
   User,
 } from "../types/auth";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_AUTH_API_URL || "http://localhost:3004";
+const AUTH_API_BASE_URL = process.env.NEXT_PUBLIC_AUTH_API_URL || "http://localhost:3004";
+const REST_API_BASE_URL = process.env.NEXT_PUBLIC_REST_API_URL || "http://localhost:3007";
 
 export const getStoredToken = (): string | null => {
   if (typeof window === "undefined") return null;
@@ -48,7 +49,7 @@ const parseJsonOrEmpty = (text: string): Record<string, string> => {
 
 export const authApi = {
   async login(credentials: LoginCredentials): Promise<LoginResponse> {
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    const response = await fetch(`${AUTH_API_BASE_URL}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(credentials),
@@ -63,7 +64,7 @@ export const authApi = {
   },
 
   async register(credentials: RegisterCredentials): Promise<RegisterResponse> {
-    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+    const response = await fetch(`${AUTH_API_BASE_URL}/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(credentials),
@@ -78,7 +79,7 @@ export const authApi = {
   },
 
   async requestPasswordReset(email: string): Promise<PasswordResetResponse> {
-    const response = await fetch(`${API_BASE_URL}/auth/password-reset`, {
+    const response = await fetch(`${AUTH_API_BASE_URL}/auth/password-reset`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email }),
@@ -95,7 +96,7 @@ export const authApi = {
   async confirmPasswordReset(
     credentials: PasswordResetConfirmCredentials,
   ): Promise<PasswordResetConfirmResponse> {
-    const response = await fetch(`${API_BASE_URL}/auth/password-reset/confirm`, {
+    const response = await fetch(`${AUTH_API_BASE_URL}/auth/password-reset/confirm`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(credentials),
@@ -113,7 +114,7 @@ export const authApi = {
     token: string,
     credentials: ChangePasswordCredentials,
   ): Promise<ChangePasswordResponse> {
-    const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
+    const response = await fetch(`${AUTH_API_BASE_URL}/auth/change-password`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -131,7 +132,7 @@ export const authApi = {
   },
 
   async confirmEmailVerification(token: string): Promise<EmailVerificationConfirmResponse> {
-    const response = await fetch(`${API_BASE_URL}/auth/verify-email`, {
+    const response = await fetch(`${AUTH_API_BASE_URL}/auth/verify-email`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token }),
@@ -146,7 +147,7 @@ export const authApi = {
   },
 
   async getAvatar(token: string): Promise<AvatarResponse> {
-    const response = await fetch(`${API_BASE_URL}/users/avatar`, {
+    const response = await fetch(`${REST_API_BASE_URL}/users/avatar`, {
       headers: { Authorization: `Bearer ${token}` },
     });
 
@@ -168,7 +169,7 @@ export const authApi = {
     // XHR rather than fetch: request-body progress for a determinate bar.
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.open("POST", `${API_BASE_URL}/users/avatar`);
+      xhr.open("POST", `${REST_API_BASE_URL}/users/avatar`);
       xhr.setRequestHeader("Authorization", `Bearer ${token}`);
       // Let the browser set the multipart boundary.
 
@@ -193,7 +194,7 @@ export const authApi = {
   },
 
   async deleteAvatar(token: string): Promise<AvatarMessageResponse> {
-    const response = await fetch(`${API_BASE_URL}/users/avatar`, {
+    const response = await fetch(`${REST_API_BASE_URL}/users/avatar`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -208,7 +209,7 @@ export const authApi = {
   async getCurrentUser(token: string): Promise<User> {
     if (!token) throw new Error("No token provided");
 
-    const response = await fetch(`${API_BASE_URL}/users`, {
+    const response = await fetch(`${REST_API_BASE_URL}/users`, {
       headers: { Authorization: `Bearer ${token}` },
     });
 

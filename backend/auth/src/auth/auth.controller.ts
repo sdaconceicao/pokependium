@@ -17,7 +17,7 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import type { FastifyRequest } from 'fastify';
-import { UserEntity } from '../users/users.entity';
+import { AccountEntity } from '../accounts/accounts.entity';
 import { AuthService } from './auth.service';
 import { Public } from './decorators/public.decorator';
 import { ChangePasswordRequestDto } from './dtos/change-password-request.dto';
@@ -40,10 +40,10 @@ import { PasswordResetValidationPipe } from './validation/password-reset-validat
 import { RegisterValidationPipe } from './validation/register-validation.pipe';
 
 export interface AuthenticatedRequest extends FastifyRequest {
-  user: UserEntity;
+  user: AccountEntity;
 }
 
-/** Routes behind `JwtGuard` get the decoded token, not a UserEntity. */
+/** Routes behind `JwtGuard` get the decoded token, not an AccountEntity. */
 export interface JwtAuthenticatedRequest extends FastifyRequest {
   user: AccessTokenPayload;
 }

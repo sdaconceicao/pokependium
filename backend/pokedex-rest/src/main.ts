@@ -38,8 +38,7 @@ async function bootstrap() {
     },
   );
 
-  // The same allow-list gates CORS and the origins emailed links may point at
-  // (see AuthService.resolveFrontendBaseUrl).
+  // CORS for the frontend origin(s) that send the auth-issued Bearer token.
   app.enableCors({
     origin: parseAllowedOrigins(process.env.ALLOWED_ORIGINS),
     credentials: true,
@@ -55,7 +54,7 @@ async function bootstrap() {
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Pokedex REST API')
-    .setDescription('Authentication and user management API for the Pokedex')
+    .setDescription('User profiles, avatars, and groups for the Pokedex')
     .setVersion('1.0')
     .addBearerAuth()
     .build();
@@ -98,6 +97,6 @@ async function bootstrap() {
     }
   }
 
-  await app.listen(process.env.PORT ?? 3002, '0.0.0.0');
+  await app.listen(process.env.PORT ?? 3007, '0.0.0.0');
 }
 void bootstrap();
