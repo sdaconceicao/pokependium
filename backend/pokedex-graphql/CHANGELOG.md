@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.0](https://github.com/sdaconceicao/pokependium/compare/pokedex-graphql-v0.5.0...pokedex-graphql-v0.6.0) (2026-09-27)
+
+
+### Features
+
+* Height/weight for pokemon ([#156](https://github.com/sdaconceicao/pokependium/issues/156)) ([1d53dcb](https://github.com/sdaconceicao/pokependium/commit/1d53dcb15f9b6ec1f269965cecc43c954e7216b2))
+
+
+### Bug Fixes
+
+* Mobile UX Updates ([#149](https://github.com/sdaconceicao/pokependium/issues/149)) ([ee22937](https://github.com/sdaconceicao/pokependium/commit/ee22937c753d657c048ad8b9e62a33c0b28e32a0))
+
 ## [0.5.0](https://github.com/sdaconceicao/pokependium/compare/pokedex-graphql-v0.4.0...pokedex-graphql-v0.5.0) (2026-08-26)
 
 
