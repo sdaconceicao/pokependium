@@ -99,10 +99,12 @@ export default async function nextConfig(): Promise<NextConfig> {
       NEXT_PUBLIC_AUTH_API_URL: authOrigin,
     },
     images: {
+      unoptimized: true,
       remotePatterns: [
         {
           protocol: "https",
           hostname: "raw.githubusercontent.com",
+          pathname: "/PokeAPI/sprites/**",
         },
         {
           protocol: "https",
