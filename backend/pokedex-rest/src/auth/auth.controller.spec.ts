@@ -1,6 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { FastifyRequest } from 'fastify';
-import type { Mocked } from 'vitest';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  type Mocked,
+  vi,
+} from 'vitest';
 import { UserEntity } from '../users/users.entity';
 import { AuthController, AuthenticatedRequest } from './auth.controller';
 import { AuthService } from './auth.service';
@@ -20,6 +28,9 @@ describe('AuthController', () => {
     password: 'hashedPassword123',
     firstName: 'Test',
     lastName: 'User',
+    emailVerified: false,
+    failedPasswordAttempts: 0,
+    passwordLockedUntil: null,
   };
 
   const mockRegisterDto: RegisterRequestDto = {

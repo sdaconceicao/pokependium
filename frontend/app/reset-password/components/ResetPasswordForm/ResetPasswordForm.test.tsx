@@ -107,7 +107,8 @@ describe("ResetPasswordForm", () => {
     await vi.waitFor(() =>
       expect(notify).toHaveBeenCalledWith(
         expect.objectContaining({
-          title: "Invalid or expired reset token",
+          title: "Password reset failed",
+          description: "Invalid or expired reset token",
           variant: "error",
         }),
       ),

@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
+import { describe, expect, it } from 'vitest';
 import { GroupPokemonRequestPipe } from './group-pokemon-request.pipe';
 
 describe('GroupPokemonRequestPipe', () => {

@@ -1,4 +1,4 @@
-import { getDexNumber } from "./PokemonHero.utils";
+import { formatHeight, formatWeight, getDexNumber } from "./PokemonHero.utils";
 
 describe("PokemonHero Utilities", () => {
   describe("getDexNumber", () => {
@@ -22,6 +22,30 @@ describe("PokemonHero Utilities", () => {
     it("should accept string ids, matching the GraphQL ID scalar", () => {
       expect(getDexNumber("7")).toBe("#007");
       expect(getDexNumber("143")).toBe("#143");
+    });
+  });
+
+  describe("formatHeight", () => {
+    it("formats feet as Pokemon-style feet and inches", () => {
+      expect(formatHeight(2.29659)).toBe("2'04\"");
+    });
+
+    it("zero-pads single-digit inches", () => {
+      expect(formatHeight(3.91667)).toBe("3'11\"");
+    });
+
+    it("handles exact foot boundaries", () => {
+      expect(formatHeight(5)).toBe("5'00\"");
+    });
+  });
+
+  describe("formatWeight", () => {
+    it("formats pounds with one decimal and unit label", () => {
+      expect(formatWeight(15.211878)).toBe("15.2 lbs");
+    });
+
+    it("shows one decimal for whole-number weights", () => {
+      expect(formatWeight(10)).toBe("10.0 lbs");
     });
   });
 });

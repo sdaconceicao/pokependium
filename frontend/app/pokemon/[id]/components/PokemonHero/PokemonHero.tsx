@@ -11,7 +11,7 @@ import { formatFormName, formatPokemonName } from "@/lib/formNames";
 import FormSelect from "@/pokemon/[id]/components/FormSelect";
 import type { Pokemon } from "@/types";
 import styles from "./PokemonHero.module.css";
-import { getDexNumber } from "./PokemonHero.utils";
+import { formatHeight, formatWeight, getDexNumber } from "./PokemonHero.utils";
 
 interface PokemonHeroProps {
   pokemon: Pokemon;
@@ -74,6 +74,16 @@ export const PokemonHero = ({ pokemon, className, flush }: PokemonHeroProps) => 
               speciesName={speciesName}
             />
             {pokemon.description && <p className={styles.description}>{pokemon.description}</p>}
+            <dl className={styles.physicalStats}>
+              <div>
+                <dt>Height</dt>
+                <dd>{formatHeight(pokemon.height)}</dd>
+              </div>
+              <div>
+                <dt>Weight</dt>
+                <dd>{formatWeight(pokemon.weight)}</dd>
+              </div>
+            </dl>
           </div>
 
           <div className={styles.heroImage}>

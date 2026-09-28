@@ -1,0 +1,8 @@
+.container {
+  --content-panel-padding: clamp(1rem, 4vw, 2rem);
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}

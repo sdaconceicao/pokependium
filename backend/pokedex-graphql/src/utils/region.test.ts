@@ -1,3 +1,5 @@
+import { describe, expect, it } from "vitest";
+
 import type { Region } from "../datasources/pokemon-api.types";
 import { convertRegionToRegionDetail, getEnglishName } from "./region";
 

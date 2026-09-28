@@ -1,0 +1,16 @@
+.panel {
+  width: 100%;
+  background: var(--surface-elevated);
+  color: var(--foreground);
+  border: 1px solid var(--border-subtle);
+  border-radius: 1.5rem;
+  padding: var(--content-panel-padding, clamp(1.5rem, 3vw, 2.5rem));
+  box-shadow: 0 12px 48px rgba(28, 31, 38, 0.08);
+}
+
+/* Matches home's mobile corner softening */
+@media (max-width: 640px) {
+  .panel {
+    border-radius: 1rem;
+  }
+}

@@ -21,6 +21,7 @@ interface NavbarSectionProps {
   /** Options per row — see `NavSection.columns` for why it is per section */
   columns?: 2;
   isCurrent?: boolean;
+  onNavigate?: () => void;
 }
 
 export default function NavbarSection({
@@ -31,6 +32,7 @@ export default function NavbarSection({
   icon,
   columns,
   isCurrent,
+  onNavigate,
 }: NavbarSectionProps) {
   const sectionId = title.toLowerCase().replace(/\s+/g, "-");
   return (
@@ -56,7 +58,9 @@ export default function NavbarSection({
             give the same content two competing toggles. */}
         {groups
           ? groups.map((group) => {
-              const groupId = `navbar-${sectionId}-${group.title.toLowerCase().replace(/\s+/g, "-")}`;
+              const groupId = `navbar-${sectionId}-${group.title
+                .toLowerCase()
+                .replace(/\s+/g, "-")}`;
 
               return (
                 <div key={group.title} className={styles.subGroup}>
@@ -66,7 +70,7 @@ export default function NavbarSection({
                   <ul className={styles.list} data-columns={columns} aria-labelledby={groupId}>
                     {group.items.map((item) => (
                       <li key={item.href} className={styles.listItem}>
-                        <NavbarItem item={item} />
+                        <NavbarItem item={item} onNavigate={onNavigate} />
                       </li>
                     ))}
                   </ul>
@@ -77,7 +81,7 @@ export default function NavbarSection({
               <ul className={styles.list} data-columns={columns}>
                 {items.map((item) => (
                   <li key={item.href} className={styles.listItem}>
-                    <NavbarItem item={item} />
+                    <NavbarItem item={item} onNavigate={onNavigate} />
                   </li>
                 ))}
               </ul>

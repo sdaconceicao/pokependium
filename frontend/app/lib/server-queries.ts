@@ -11,6 +11,8 @@ const GET_POKEMON_BY_ID = gql`
       name
       type
       image
+      height
+      weight
       description
       stats {
         hp

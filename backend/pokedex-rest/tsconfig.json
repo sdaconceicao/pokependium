@@ -15,13 +15,15 @@
     "rootDir": "./src",
     "outDir": "./dist",
     "incremental": true,
+    "noEmit": true,
     "skipLibCheck": true,
     "strictNullChecks": true,
     "strictPropertyInitialization": false,
     "forceConsistentCasingInFileNames": true,
     "noImplicitAny": true,
     "strictBindCallApply": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "types": ["node"]
   },
   "include": ["src/**/*"],
   "exclude": [
@@ -31,6 +33,6 @@
     "**/*.spec.ts",
     "vitest.config.ts",
     "vitest.setup.ts",
-    "vitest-env.d.ts"
+    "src/vitest-env.d.ts"
   ]
 }

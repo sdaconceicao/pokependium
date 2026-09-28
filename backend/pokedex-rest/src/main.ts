@@ -1,3 +1,4 @@
+import multipart from '@fastify/multipart';
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
@@ -16,6 +17,7 @@ import { postgresDriver } from './config/postgres-driver';
 import { GroupPokemonEntity } from './groups/group-pokemon.entity';
 import { GroupEntity } from './groups/groups.entity';
 import { UserEntity } from './users/users.entity';
+import { AVATAR_MAX_BYTES } from './users/validation/avatar.validation';
 
 async function bootstrap() {
   const winstonLogger = createWinstonLogger({
@@ -43,6 +45,12 @@ async function bootstrap() {
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+  });
+
+  // Size cap at the transport layer so an oversized body is cut off mid-stream.
+  // `fields: 0` because the file is the entire payload.
+  await app.register(multipart, {
+    limits: { fileSize: AVATAR_MAX_BYTES, files: 1, fields: 0 },
   });
 
   const swaggerConfig = new DocumentBuilder()

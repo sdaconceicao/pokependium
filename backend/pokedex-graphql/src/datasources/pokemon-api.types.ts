@@ -143,6 +143,7 @@ export type PokemonEntity = {
   forms: NamedAPIResource[];
   game_indices: GameIndex[];
   height: number;
+  weight: number;
   id: number;
   is_default: boolean;
   location_area_encounters: string;

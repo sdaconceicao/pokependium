@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest';
 import { validateGroupName, validatePokemonRef } from './group.validation';
 
 describe('validateGroupName', () => {

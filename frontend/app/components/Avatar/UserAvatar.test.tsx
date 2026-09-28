@@ -39,7 +39,7 @@ describe("UserAvatar", () => {
       await openMenu();
 
       const items = screen.getAllByRole("menuitem");
-      expect(items.map((item) => item.textContent)).toEqual(["My groups", "Log out"]);
+      expect(items.map((item) => item.textContent)).toEqual(["Account", "My groups", "Log out"]);
       // The account row precedes both -- Node.DOCUMENT_POSITION_FOLLOWING
       expect(screen.getByText(EMAIL).compareDocumentPosition(items[0]) & 4).toBeTruthy();
     });
@@ -75,10 +75,10 @@ describe("UserAvatar", () => {
       );
     });
 
-    it("offers no account-settings entry -- group management lives on /groups", async () => {
+    it("links Account to /account", async () => {
       await openMenu();
 
-      expect(screen.queryByRole("menuitem", { name: "Account settings" })).not.toBeInTheDocument();
+      expect(screen.getByRole("menuitem", { name: "Account" })).toHaveAttribute("href", "/account");
     });
 
     it("still finds the logout item by its accessible name (used by the e2e auth helper)", async () => {

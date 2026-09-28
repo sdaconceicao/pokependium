@@ -8,7 +8,7 @@ import {
   Select,
   SelectItem,
 } from "@code-x/lago";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { buildDualTypeOptions } from "@/lib/searchFilters";
 import { titleCase } from "@/lib/string";
 import type { PokemonPokedex, PokemonRegion, PokemonType } from "@/types";
@@ -24,6 +24,7 @@ interface SearchFiltersProps {
   types: PokemonType[];
   regions: PokemonRegion[];
   pokedexes: PokemonPokedex[];
+  onNavigate?: () => void;
 }
 
 const toOptions = (facets: { name: string }[]): FacetOption[] =>
@@ -38,7 +39,12 @@ const toOptions = (facets: { name: string }[]): FacetOption[] =>
  * fetched once per request by `NavigationDataProvider` and handed down, so the
  * form costs no extra request.
  */
-export default function SearchFilters({ types, regions, pokedexes }: SearchFiltersProps) {
+export default function SearchFilters({
+  types,
+  regions,
+  pokedexes,
+  onNavigate,
+}: SearchFiltersProps) {
   const {
     draft,
     dualTypeKey,
@@ -51,6 +57,11 @@ export default function SearchFilters({ types, regions, pokedexes }: SearchFilte
     submit,
     clear,
   } = useSearchFilterForm();
+
+  const handleSubmit = useCallback(() => {
+    submit();
+    onNavigate?.();
+  }, [submit, onNavigate]);
 
   const typeOptions = useMemo(() => toOptions(types), [types]);
   const regionOptions = useMemo(() => toOptions(regions), [regions]);
@@ -126,7 +137,7 @@ export default function SearchFilters({ types, regions, pokedexes }: SearchFilte
         placeholder="Any name"
         value={draft.q}
         onChange={setName}
-        onSubmit={submit}
+        onSubmit={handleSubmit}
         loadSuggestions={loadSuggestions}
         className={styles.nameField}
       />
@@ -135,7 +146,7 @@ export default function SearchFilters({ types, regions, pokedexes }: SearchFilte
         {/* The name field renders lago's own "Search" button inside itself, so
             this one spells out what it does — otherwise the sidebar offers two
             buttons with the same name and no way to tell them apart. */}
-        <Button aria-label="Search with these filters" onPress={submit}>
+        <Button aria-label="Search with these filters" onPress={handleSubmit}>
           Search
         </Button>
         <Button variant="quiet" onPress={clear}>

@@ -2,7 +2,7 @@
   "name": "pokedex-graphql",
   "private": true,
   "description": "The API for the Pokependium project",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "license": "MIT",
   "type": "module",
   "main": "dist/index.js",
@@ -11,7 +11,7 @@
     "node": ">=18.0"
   },
   "scripts": {
-    "compile": "node scripts/embed-schema.mjs && tsc",
+    "compile": "node scripts/embed-schema.mjs && tsc -p tsconfig.build.json",
     "start": "pn compile && nodemon ./dist/index.js",
     "start:dev": "node scripts/embed-schema.mjs && concurrently \"tsx watch ./src/index.ts\" \"pn  generate\"",
     "start:dev:mock": "node scripts/embed-schema.mjs && USE_MOCK_API=true tsx watch ./src/index.ts",
@@ -22,30 +22,31 @@
     "test:coverage": "vitest run --coverage",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "lint:check": "biome ci .",
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
     "format": "biome format --write .",
-    "tsc": "tsc --noEmit"
+    "tsc": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json"
   },
   "dependencies": {
     "@apollo/datasource-rest": "^6.4.1",
     "@apollo/utils.keyvaluecache": "^4.0.0",
     "@parcel/watcher": "^2.6.0",
     "graphql": "^17.0.2",
-    "graphql-yoga": "^5.21.2"
+    "graphql-yoga": "^5.22.0"
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",
-    "@graphql-codegen/cli": "^7.2.0",
+    "@graphql-codegen/cli": "^7.3.1",
     "@graphql-codegen/typescript": "^6.1.0",
     "@graphql-codegen/typescript-resolvers": "^6.1.0",
-    "@types/node": "^26.1.2",
-    "@vitest/coverage-v8": "^4.1.10",
-    "concurrently": "^8.2.2",
+    "@types/node": "^26.4.0",
+    "@vitest/coverage-v8": "^4.1.11",
+    "concurrently": "^10.0.5",
     "msw": "^2.15.0",
     "nodemon": "^3.0.0",
     "ts-node": "^10.9.1",
-    "tsx": "^4.23.1",
+    "tsx": "^4.23.13",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   }
 }

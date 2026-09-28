@@ -35,6 +35,32 @@ export class UsersService {
     return this.findOneById(id);
   }
 
+  /**
+   * Atomically increments the failed-password counter. If the lock window has
+   * expired, the streak resets to 1 instead of continuing from the old count.
+   */
+  async recordFailedPasswordAttempt(
+    userId: string,
+    maxAttempts: number,
+    lockoutMs: number,
+  ): Promise<void> {
+    const lockedUntil = new Date(Date.now() + lockoutMs);
+
+    await this.usersRepository
+      .createQueryBuilder()
+      .update(UserEntity)
+      .set({
+        failedPasswordAttempts: () =>
+          `CASE WHEN "passwordLockedUntil" IS NOT NULL AND "passwordLockedUntil" <= NOW() THEN 1 ELSE "failedPasswordAttempts" + 1 END`,
+        passwordLockedUntil: () =>
+          `CASE WHEN (CASE WHEN "passwordLockedUntil" IS NOT NULL AND "passwordLockedUntil" <= NOW() THEN 1 ELSE "failedPasswordAttempts" + 1 END) >= :maxAttempts THEN :lockedUntil ELSE NULL END`,
+      })
+      .setParameter('maxAttempts', maxAttempts)
+      .setParameter('lockedUntil', lockedUntil)
+      .where('id = :userId', { userId })
+      .execute();
+  }
+
   async delete(id: string): Promise<boolean> {
     const result = await this.usersRepository.delete(id);
     return (result.affected ?? 0) > 0;

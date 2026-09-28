@@ -5,12 +5,10 @@
     "target": "ES2022",
     "module": "nodenext",
     "moduleResolution": "nodenext",
+    "noEmit": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "sourceMap": true,
-    "declaration": true,
-    "declarationMap": true,
-    "removeComments": true,
     "skipLibCheck": true,
     "noImplicitAny": true,
     "noImplicitReturns": true,
@@ -22,5 +20,13 @@
   },
   "files": ["src/graphql.d.ts"],
   "include": ["src/**/*.ts"],
-  "exclude": ["dist", "node_modules", "**/*.test.ts", "**/vitest.setup.ts", "codegen.ts"]
+  "exclude": [
+    "dist",
+    "node_modules",
+    "codegen.ts",
+    "**/*.test.ts",
+    "**/vitest.setup.ts",
+    "src/vitest-env.d.ts",
+    "src/test/**"
+  ]
 }

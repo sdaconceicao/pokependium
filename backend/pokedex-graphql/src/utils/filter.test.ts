@@ -1,3 +1,5 @@
+import { describe, expect, it } from "vitest";
+
 import type { PokemonIndex } from "../datasources/pokemon-api.types";
 import { PokemonSort } from "../types";
 import { byName, byNumber, intersect, sortByNumber, sortResults, union } from "./filter";

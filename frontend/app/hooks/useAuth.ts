@@ -1,7 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { skipToken, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { authApi, getStoredToken, setStoredToken } from "@/lib/auth";
+import { authApi, getStoredToken, requireStoredToken, setStoredToken } from "@/lib/auth";
 import type {
+  ChangePasswordCredentials,
+  ChangePasswordResponse,
   EmailVerificationConfirmResponse,
   LoginCredentials,
   LoginResponse,
@@ -36,8 +38,7 @@ export function useAuth() {
     error: userError,
   } = useQuery({
     queryKey: ["auth", "user", token],
-    queryFn: () => authApi.getCurrentUser(token!),
-    enabled: !!token,
+    queryFn: token ? () => authApi.getCurrentUser(token) : skipToken,
     retry: false,
     staleTime: 5 * 60 * 1000,
   });
@@ -91,6 +92,15 @@ export function useAuth() {
     },
   });
 
+  // No onSuccess: the access token is independent of the password hash.
+  const changePasswordMutation = useMutation<
+    ChangePasswordResponse,
+    Error,
+    ChangePasswordCredentials
+  >({
+    mutationFn: (credentials) => authApi.changePassword(requireStoredToken(), credentials),
+  });
+
   return {
     user: hasMounted ? user : undefined,
     isLoading: isTokenLoading || isUserLoading,
@@ -111,6 +121,8 @@ export function useAuth() {
     isConfirmPasswordResetLoading: confirmPasswordResetMutation.isPending,
     confirmEmailVerificationAsync: confirmEmailVerificationMutation.mutateAsync,
     isConfirmEmailVerificationLoading: confirmEmailVerificationMutation.isPending,
+    changePasswordAsync: changePasswordMutation.mutateAsync,
+    isChangePasswordLoading: changePasswordMutation.isPending,
   };
 }
 

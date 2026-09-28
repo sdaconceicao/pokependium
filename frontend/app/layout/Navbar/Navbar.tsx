@@ -20,6 +20,7 @@ interface NavbarProps {
   openSection: NavSectionKey | null;
   currentSection: NavSectionKey | null;
   onOpenSectionChange: (key: NavSectionKey | null) => void;
+  onNavigate?: () => void;
 }
 
 export default function Navbar({
@@ -27,6 +28,7 @@ export default function Navbar({
   openSection,
   currentSection,
   onOpenSectionChange,
+  onNavigate,
 }: NavbarProps) {
   const { types, pokedexes, regions } = navigationData;
 
@@ -44,7 +46,12 @@ export default function Navbar({
   return (
     <nav className={styles.navbar}>
       <NavbarGroup title="Search">
-        <SearchFilters types={types} regions={regions} pokedexes={pokedexes} />
+        <SearchFilters
+          types={types}
+          regions={regions}
+          pokedexes={pokedexes}
+          onNavigate={onNavigate}
+        />
       </NavbarGroup>
 
       <NavbarGroup title="Browse">
@@ -63,6 +70,7 @@ export default function Navbar({
                 title={title}
                 icon={icon}
                 isCurrent={key === currentSection}
+                onNavigate={onNavigate}
                 groups={pokedexGroups}
               />
             ) : (
@@ -72,6 +80,7 @@ export default function Navbar({
                 title={title}
                 icon={icon}
                 isCurrent={key === currentSection}
+                onNavigate={onNavigate}
                 columns={columns}
                 items={itemsByKey[key]}
               />

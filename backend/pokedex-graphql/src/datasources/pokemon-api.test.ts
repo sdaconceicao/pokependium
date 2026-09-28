@@ -1,7 +1,8 @@
 import { InMemoryLRUCache } from "@apollo/utils.keyvaluecache";
 import { HttpResponse, http } from "msw";
-import { server } from "../mocks/server.js";
-import { PokemonAPI } from "./pokemon-api.js";
+import { describe, expect, it } from "vitest";
+import { server } from "../mocks/server";
+import { PokemonAPI } from "./pokemon-api";
 
 const api = () => new PokemonAPI({ cache: new InMemoryLRUCache() });
 

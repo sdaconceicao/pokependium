@@ -1,3 +1,5 @@
+import { describe, expect, it } from "vitest";
+
 import type { NameEntry, Pokedex } from "../datasources/pokemon-api.types";
 import { convertPokedexToPokedexDetail, getDisplayName, getEnglishDescription } from "./pokedex";
 

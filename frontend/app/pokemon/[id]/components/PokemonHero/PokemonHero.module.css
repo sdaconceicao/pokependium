@@ -155,6 +155,36 @@
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
+.physicalStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  margin: 0;
+}
+
+.physicalStats > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.physicalStats dt {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.physicalStats dd {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.92);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
 .heroImage {
   position: relative;
   z-index: 1;
@@ -213,6 +243,10 @@
 
   .description {
     margin-inline: auto;
+  }
+
+  .physicalStats {
+    justify-content: center;
   }
 
   .pokemonName {

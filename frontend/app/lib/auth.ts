@@ -1,4 +1,8 @@
 import type {
+  AvatarMessageResponse,
+  AvatarResponse,
+  ChangePasswordCredentials,
+  ChangePasswordResponse,
   EmailVerificationConfirmResponse,
   LoginCredentials,
   LoginResponse,
@@ -17,6 +21,12 @@ export const getStoredToken = (): string | null => {
   return localStorage.getItem("access_token");
 };
 
+export const requireStoredToken = (): string => {
+  const token = getStoredToken();
+  if (!token) throw new Error("No token provided");
+  return token;
+};
+
 export const setStoredToken = (token: string): void => {
   if (typeof window === "undefined") return;
   localStorage.setItem("access_token", token);
@@ -25,6 +35,15 @@ export const setStoredToken = (token: string): void => {
 const removeStoredToken = (): void => {
   if (typeof window === "undefined") return;
   localStorage.removeItem("access_token");
+};
+
+/** XMLHttpRequest has no `.json()`, and an error body may not be JSON at all. */
+const parseJsonOrEmpty = (text: string): Record<string, string> => {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return {};
+  }
 };
 
 export const authApi = {
@@ -90,6 +109,27 @@ export const authApi = {
     return response.json();
   },
 
+  async changePassword(
+    token: string,
+    credentials: ChangePasswordCredentials,
+  ): Promise<ChangePasswordResponse> {
+    const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(credentials),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || "Password change failed");
+    }
+
+    return response.json();
+  },
+
   async confirmEmailVerification(token: string): Promise<EmailVerificationConfirmResponse> {
     const response = await fetch(`${API_BASE_URL}/auth/verify-email`, {
       method: "POST",
@@ -100,6 +140,66 @@ export const authApi = {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.message || "Verification failed");
+    }
+
+    return response.json();
+  },
+
+  async getAvatar(token: string): Promise<AvatarResponse> {
+    const response = await fetch(`${API_BASE_URL}/users/avatar`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch avatar");
+    }
+
+    return response.json();
+  },
+
+  async uploadAvatar(
+    token: string,
+    file: File,
+    onProgress?: (percent: number) => void,
+  ): Promise<AvatarMessageResponse> {
+    const body = new FormData();
+    body.append("file", file);
+
+    // XHR rather than fetch: request-body progress for a determinate bar.
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", `${API_BASE_URL}/users/avatar`);
+      xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      // Let the browser set the multipart boundary.
+
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          onProgress?.(Math.round((event.loaded / event.total) * 100));
+        }
+      };
+
+      xhr.onload = () => {
+        const payload = parseJsonOrEmpty(xhr.responseText);
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(payload as unknown as AvatarMessageResponse);
+          return;
+        }
+        reject(new Error(payload.message || "Avatar upload failed"));
+      };
+
+      xhr.onerror = () => reject(new Error("Avatar upload failed"));
+      xhr.send(body);
+    });
+  },
+
+  async deleteAvatar(token: string): Promise<AvatarMessageResponse> {
+    const response = await fetch(`${API_BASE_URL}/users/avatar`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to remove avatar");
     }
 
     return response.json();

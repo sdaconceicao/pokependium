@@ -10,7 +10,7 @@ import {
   Separator,
   SlottedText,
 } from "@code-x/lago";
-import { Bookmark, LogOut01 } from "@untitled-ui/icons-react";
+import { Bookmark, LogOut01, User01 } from "@untitled-ui/icons-react";
 import clsx from "clsx";
 import { Header, MenuTrigger } from "react-aria-components";
 import styles from "./UserAvatar.module.css";
@@ -62,6 +62,10 @@ export default function UserAvatar({
               router call of its own — unlike Log out, which is a real action
               rather than a navigation. */}
           <MenuSection>
+            <MenuItem id="account" href="/account" textValue="Account">
+              <User01 aria-hidden="true" />
+              <SlottedText slot="label">Account</SlottedText>
+            </MenuItem>
             <MenuItem id="my-lists" href="/groups" textValue="My groups">
               <Bookmark aria-hidden="true" />
               <SlottedText slot="label">My groups</SlottedText>

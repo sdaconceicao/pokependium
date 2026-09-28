@@ -89,6 +89,8 @@ type Pokemon {
   name: String!
   type: [String!]!
   image: String!
+  height: Float!
+  weight: Float!
   stats: Stats!
   abilitiesLite: [AbilityLite!]!
   abilities: [Ability!]

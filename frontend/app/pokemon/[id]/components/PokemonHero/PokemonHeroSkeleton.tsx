@@ -47,6 +47,10 @@ export default function PokemonHeroSkeleton({ flush }: PokemonHeroSkeletonProps)
               className={styles.onGradient}
             />
           </div>
+          <div className={styles.physicalStats}>
+            <Skeleton variant="line" width={56} height={14} className={styles.onGradient} />
+            <Skeleton variant="line" width={64} height={14} className={styles.onGradient} />
+          </div>
         </div>
         <div className={styles.heroImage}>
           {/* No explicit height: `aspect-ratio: 1` from the circle variant

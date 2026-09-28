@@ -1,3 +1,5 @@
+import { describe, expect, it } from "vitest";
+
 import type {
   EvolutionDetail,
   PokemonAbility,
@@ -5,7 +7,9 @@ import type {
   PokemonSpecies,
   SpeciesFlavorTextEntry,
 } from "../datasources/pokemon-api.types";
+import { createPokemonAbility, createPokemonEntity } from "../test/mock-api-types";
 import type { AbilityLite } from "../types";
+import { decimetersToFeet, hectogramsToPounds } from "./conversion";
 import {
   convertAbilityLiteToAbility,
   convertPokemonEntityToPokemon,
@@ -22,7 +26,7 @@ import {
 
 describe("getPokemonAbilitiesLite", () => {
   it("should extract ability information correctly", () => {
-    const mockPokemon: PokemonEntity = {
+    const mockPokemon = createPokemonEntity({
       id: 1,
       name: "bulbasaur",
       abilities: [
@@ -43,7 +47,7 @@ describe("getPokemonAbilitiesLite", () => {
           slot: 3,
         },
       ],
-    } as PokemonEntity;
+    });
 
     const result = getPokemonAbilitiesLite(mockPokemon);
 
@@ -65,11 +69,11 @@ describe("getPokemonAbilitiesLite", () => {
   });
 
   it("should handle empty abilities array", () => {
-    const mockPokemon: PokemonEntity = {
+    const mockPokemon = createPokemonEntity({
       id: 1,
       name: "bulbasaur",
       abilities: [],
-    } as PokemonEntity;
+    });
 
     const result = getPokemonAbilitiesLite(mockPokemon);
 
@@ -78,7 +82,7 @@ describe("getPokemonAbilitiesLite", () => {
   });
 
   it("should handle ability URL with trailing slash", () => {
-    const mockPokemon: PokemonEntity = {
+    const mockPokemon = createPokemonEntity({
       id: 1,
       name: "bulbasaur",
       abilities: [
@@ -91,7 +95,7 @@ describe("getPokemonAbilitiesLite", () => {
           slot: 1,
         },
       ],
-    } as PokemonEntity;
+    });
 
     const result = getPokemonAbilitiesLite(mockPokemon);
 
@@ -99,7 +103,7 @@ describe("getPokemonAbilitiesLite", () => {
   });
 
   it("should handle ability URL without trailing slash", () => {
-    const mockPokemon: PokemonEntity = {
+    const mockPokemon = createPokemonEntity({
       id: 1,
       name: "bulbasaur",
       abilities: [
@@ -112,7 +116,7 @@ describe("getPokemonAbilitiesLite", () => {
           slot: 1,
         },
       ],
-    } as PokemonEntity;
+    });
 
     const result = getPokemonAbilitiesLite(mockPokemon);
 
@@ -122,7 +126,7 @@ describe("getPokemonAbilitiesLite", () => {
 
 describe("getPokemonDefaultImageUrl", () => {
   it("should return front_default sprite when available", () => {
-    const mockPokemon: PokemonEntity = {
+    const mockPokemon = createPokemonEntity({
       id: 1,
       name: "bulbasaur",
       sprites: {
@@ -152,7 +156,7 @@ describe("getPokemonDefaultImageUrl", () => {
           },
         },
       },
-    } as PokemonEntity;
+    });
 
     const result = getPokemonDefaultImageUrl(mockPokemon);
 
@@ -162,7 +166,7 @@ describe("getPokemonDefaultImageUrl", () => {
   });
 
   it("should fallback to front_shiny when front_default is null", () => {
-    const mockPokemon: PokemonEntity = {
+    const mockPokemon = createPokemonEntity({
       id: 1,
       name: "bulbasaur",
       sprites: {
@@ -192,7 +196,7 @@ describe("getPokemonDefaultImageUrl", () => {
           },
         },
       },
-    } as PokemonEntity;
+    });
 
     const result = getPokemonDefaultImageUrl(mockPokemon);
 
@@ -202,7 +206,7 @@ describe("getPokemonDefaultImageUrl", () => {
   });
 
   it("should fallback to back_default when front sprites are null", () => {
-    const mockPokemon: PokemonEntity = {
+    const mockPokemon = createPokemonEntity({
       id: 1,
       name: "bulbasaur",
       sprites: {
@@ -232,7 +236,7 @@ describe("getPokemonDefaultImageUrl", () => {
           },
         },
       },
-    } as PokemonEntity;
+    });
 
     const result = getPokemonDefaultImageUrl(mockPokemon);
 
@@ -242,7 +246,7 @@ describe("getPokemonDefaultImageUrl", () => {
   });
 
   it("should fallback to official-artwork when basic sprites are null", () => {
-    const mockPokemon: PokemonEntity = {
+    const mockPokemon = createPokemonEntity({
       id: 1,
       name: "bulbasaur",
       sprites: {
@@ -271,7 +275,7 @@ describe("getPokemonDefaultImageUrl", () => {
           },
         },
       },
-    } as PokemonEntity;
+    });
 
     const result = getPokemonDefaultImageUrl(mockPokemon);
 
@@ -281,7 +285,7 @@ describe("getPokemonDefaultImageUrl", () => {
   });
 
   it("should return placeholder image when no sprites are available", () => {
-    const mockPokemon: PokemonEntity = {
+    const mockPokemon = createPokemonEntity({
       id: 1,
       name: "bulbasaur",
       sprites: {
@@ -308,7 +312,7 @@ describe("getPokemonDefaultImageUrl", () => {
           },
         },
       },
-    } as PokemonEntity;
+    });
 
     const result = getPokemonDefaultImageUrl(mockPokemon);
 
@@ -316,7 +320,7 @@ describe("getPokemonDefaultImageUrl", () => {
   });
 
   it("should handle Pokemon name with special characters in placeholder", () => {
-    const mockPokemon: PokemonEntity = {
+    const mockPokemon = createPokemonEntity({
       id: 1,
       name: "mr. mime",
       sprites: {
@@ -343,7 +347,7 @@ describe("getPokemonDefaultImageUrl", () => {
           },
         },
       },
-    } as PokemonEntity;
+    });
 
     const result = getPokemonDefaultImageUrl(mockPokemon);
 
@@ -353,7 +357,7 @@ describe("getPokemonDefaultImageUrl", () => {
 
 describe("getPokemonTypes", () => {
   it("should extract type names correctly", () => {
-    const mockPokemon: PokemonEntity = {
+    const mockPokemon = createPokemonEntity({
       id: 1,
       name: "bulbasaur",
       types: [
@@ -366,7 +370,7 @@ describe("getPokemonTypes", () => {
           type: { name: "poison", url: "https://pokeapi.co/api/v2/type/4/" },
         },
       ],
-    } as PokemonEntity;
+    });
 
     const result = getPokemonTypes(mockPokemon);
 
@@ -374,7 +378,7 @@ describe("getPokemonTypes", () => {
   });
 
   it("should handle single type Pokemon", () => {
-    const mockPokemon: PokemonEntity = {
+    const mockPokemon = createPokemonEntity({
       id: 25,
       name: "pikachu",
       types: [
@@ -383,7 +387,7 @@ describe("getPokemonTypes", () => {
           type: { name: "electric", url: "https://pokeapi.co/api/v2/type/13/" },
         },
       ],
-    } as PokemonEntity;
+    });
 
     const result = getPokemonTypes(mockPokemon);
 
@@ -391,11 +395,11 @@ describe("getPokemonTypes", () => {
   });
 
   it("should handle Pokemon with no types", () => {
-    const mockPokemon: PokemonEntity = {
+    const mockPokemon = createPokemonEntity({
       id: 1,
       name: "bulbasaur",
       types: [],
-    } as PokemonEntity;
+    });
 
     const result = getPokemonTypes(mockPokemon);
 
@@ -403,7 +407,7 @@ describe("getPokemonTypes", () => {
   });
 
   it("should preserve type order based on slot", () => {
-    const mockPokemon: PokemonEntity = {
+    const mockPokemon = createPokemonEntity({
       id: 1,
       name: "bulbasaur",
       types: [
@@ -416,7 +420,7 @@ describe("getPokemonTypes", () => {
           type: { name: "grass", url: "https://pokeapi.co/api/v2/type/12/" },
         },
       ],
-    } as PokemonEntity;
+    });
 
     const result = getPokemonTypes(mockPokemon);
 
@@ -426,7 +430,7 @@ describe("getPokemonTypes", () => {
 
 describe("getPokemonStats", () => {
   it("should map all stats correctly", () => {
-    const mockPokemon: PokemonEntity = {
+    const mockPokemon = createPokemonEntity({
       id: 1,
       name: "bulbasaur",
       stats: [
@@ -467,7 +471,7 @@ describe("getPokemonStats", () => {
           stat: { name: "speed", url: "https://pokeapi.co/api/v2/stat/6/" },
         },
       ],
-    } as PokemonEntity;
+    });
 
     const result = getPokemonStats(mockPokemon);
 
@@ -482,7 +486,7 @@ describe("getPokemonStats", () => {
   });
 
   it("should handle missing stats by defaulting to 0", () => {
-    const mockPokemon: PokemonEntity = {
+    const mockPokemon = createPokemonEntity({
       id: 1,
       name: "bulbasaur",
       stats: [
@@ -493,7 +497,7 @@ describe("getPokemonStats", () => {
         },
         // Missing other stats
       ],
-    } as PokemonEntity;
+    });
 
     const result = getPokemonStats(mockPokemon);
 
@@ -508,11 +512,11 @@ describe("getPokemonStats", () => {
   });
 
   it("should handle Pokemon with no stats", () => {
-    const mockPokemon: PokemonEntity = {
+    const mockPokemon = createPokemonEntity({
       id: 1,
       name: "bulbasaur",
       stats: [],
-    } as PokemonEntity;
+    });
 
     const result = getPokemonStats(mockPokemon);
 
@@ -527,7 +531,7 @@ describe("getPokemonStats", () => {
   });
 
   it("should handle stats in any order", () => {
-    const mockPokemon: PokemonEntity = {
+    const mockPokemon = createPokemonEntity({
       id: 1,
       name: "bulbasaur",
       stats: [
@@ -550,7 +554,7 @@ describe("getPokemonStats", () => {
           stat: { name: "attack", url: "https://pokeapi.co/api/v2/stat/2/" },
         },
       ],
-    } as PokemonEntity;
+    });
 
     const result = getPokemonStats(mockPokemon);
 
@@ -565,7 +569,7 @@ describe("getPokemonStats", () => {
   });
 
   it("should handle unknown stat names gracefully", () => {
-    const mockPokemon: PokemonEntity = {
+    const mockPokemon = createPokemonEntity({
       id: 1,
       name: "bulbasaur",
       stats: [
@@ -583,7 +587,7 @@ describe("getPokemonStats", () => {
           },
         },
       ],
-    } as PokemonEntity;
+    });
 
     const result = getPokemonStats(mockPokemon);
 
@@ -600,7 +604,7 @@ describe("getPokemonStats", () => {
 
 describe("convertPokemonEntityToPokemon", () => {
   it("should convert PokemonEntity to Pokemon correctly", () => {
-    const mockPokemonEntity: PokemonEntity = {
+    const mockPokemonEntity = createPokemonEntity({
       id: 1,
       name: "bulbasaur",
       species: {
@@ -698,7 +702,9 @@ describe("convertPokemonEntityToPokemon", () => {
           },
         },
       },
-    } as PokemonEntity;
+      height: 7,
+      weight: 69,
+    });
 
     const result = convertPokemonEntityToPokemon(mockPokemonEntity);
 
@@ -709,6 +715,8 @@ describe("convertPokemonEntityToPokemon", () => {
       name: "bulbasaur",
       type: ["grass", "poison"],
       image: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/1.png",
+      height: decimetersToFeet(7),
+      weight: hectogramsToPounds(69),
       stats: {
         hp: 45,
         attack: 49,
@@ -737,7 +745,7 @@ describe("convertPokemonEntityToPokemon", () => {
   });
 
   it("should handle Pokemon with minimal data", () => {
-    const mockPokemonEntity: PokemonEntity = {
+    const mockPokemonEntity = createPokemonEntity({
       id: 999,
       name: "test-pokemon",
       species: {
@@ -771,7 +779,9 @@ describe("convertPokemonEntityToPokemon", () => {
           },
         },
       },
-    } as PokemonEntity;
+      height: 0,
+      weight: 0,
+    });
 
     const result = convertPokemonEntityToPokemon(mockPokemonEntity);
 
@@ -782,6 +792,8 @@ describe("convertPokemonEntityToPokemon", () => {
       name: "test-pokemon",
       type: [],
       image: "https://dummyimage.com/96x96/f0f0f0/666666.png&text=test-pokemon",
+      height: 0,
+      weight: 0,
       stats: {
         hp: 0,
         attack: 0,
@@ -795,7 +807,7 @@ describe("convertPokemonEntityToPokemon", () => {
   });
 
   it("should convert ID to string", () => {
-    const mockPokemonEntity: PokemonEntity = {
+    const mockPokemonEntity = createPokemonEntity({
       id: 25,
       name: "pikachu",
       species: {
@@ -829,7 +841,7 @@ describe("convertPokemonEntityToPokemon", () => {
           },
         },
       },
-    } as PokemonEntity;
+    });
 
     const result = convertPokemonEntityToPokemon(mockPokemonEntity);
 
@@ -840,7 +852,7 @@ describe("convertPokemonEntityToPokemon", () => {
 
 describe("convertAbilityLiteToAbility", () => {
   it("should convert PokemonAbility and AbilityLite to Ability correctly", () => {
-    const mockPokemonAbility: PokemonAbility = {
+    const mockPokemonAbility = createPokemonAbility({
       id: 65,
       name: "overgrow",
       effect_entries: [
@@ -895,7 +907,7 @@ describe("convertAbilityLiteToAbility", () => {
       },
       is_main_series: true,
       pokemon: [],
-    } as PokemonAbility;
+    });
 
     const mockAbilityLite: AbilityLite = {
       id: "65",
@@ -920,7 +932,7 @@ describe("convertAbilityLiteToAbility", () => {
   });
 
   it("should handle missing English effect entries", () => {
-    const mockPokemonAbility: PokemonAbility = {
+    const mockPokemonAbility = createPokemonAbility({
       id: 66,
       name: "chlorophyll",
       effect_entries: [
@@ -952,7 +964,7 @@ describe("convertAbilityLiteToAbility", () => {
       },
       is_main_series: true,
       pokemon: [],
-    } as PokemonAbility;
+    });
 
     const mockAbilityLite: AbilityLite = {
       id: "66",
@@ -975,7 +987,7 @@ describe("convertAbilityLiteToAbility", () => {
   });
 
   it("should handle missing English flavor text entries", () => {
-    const mockPokemonAbility: PokemonAbility = {
+    const mockPokemonAbility = createPokemonAbility({
       id: 67,
       name: "blaze",
       effect_entries: [
@@ -1009,7 +1021,7 @@ describe("convertAbilityLiteToAbility", () => {
       },
       is_main_series: true,
       pokemon: [],
-    } as PokemonAbility;
+    });
 
     const mockAbilityLite: AbilityLite = {
       id: "67",
@@ -1033,7 +1045,7 @@ describe("convertAbilityLiteToAbility", () => {
   });
 
   it("should handle empty effect and flavor text arrays", () => {
-    const mockPokemonAbility: PokemonAbility = {
+    const mockPokemonAbility = createPokemonAbility({
       id: 68,
       name: "torrent",
       effect_entries: [],
@@ -1044,7 +1056,7 @@ describe("convertAbilityLiteToAbility", () => {
       },
       is_main_series: true,
       pokemon: [],
-    } as PokemonAbility;
+    });
 
     const mockAbilityLite: AbilityLite = {
       id: "68",
@@ -1067,7 +1079,7 @@ describe("convertAbilityLiteToAbility", () => {
   });
 
   it("should handle ability with multiple language entries", () => {
-    const mockPokemonAbility: PokemonAbility = {
+    const mockPokemonAbility = createPokemonAbility({
       id: 69,
       name: "swift-swim",
       effect_entries: [
@@ -1126,7 +1138,7 @@ describe("convertAbilityLiteToAbility", () => {
       },
       is_main_series: true,
       pokemon: [],
-    } as PokemonAbility;
+    });
 
     const mockAbilityLite: AbilityLite = {
       id: "69",
@@ -1149,7 +1161,7 @@ describe("convertAbilityLiteToAbility", () => {
   });
 
   it("should convert ID to string correctly", () => {
-    const mockPokemonAbility: PokemonAbility = {
+    const mockPokemonAbility = createPokemonAbility({
       id: 999,
       name: "test-ability",
       effect_entries: [],
@@ -1160,7 +1172,7 @@ describe("convertAbilityLiteToAbility", () => {
       },
       is_main_series: true,
       pokemon: [],
-    } as PokemonAbility;
+    });
 
     const mockAbilityLite: AbilityLite = {
       id: "999",
@@ -1177,7 +1189,7 @@ describe("convertAbilityLiteToAbility", () => {
   });
 
   it("should preserve slot value from AbilityLite", () => {
-    const mockPokemonAbility: PokemonAbility = {
+    const mockPokemonAbility = createPokemonAbility({
       id: 70,
       name: "water-absorb",
       effect_entries: [],
@@ -1188,7 +1200,7 @@ describe("convertAbilityLiteToAbility", () => {
       },
       is_main_series: true,
       pokemon: [],
-    } as PokemonAbility;
+    });
 
     const mockAbilityLite: AbilityLite = {
       id: "70",

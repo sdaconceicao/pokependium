@@ -39,6 +39,8 @@ const pokemon: Pokemon = {
   name: "bulbasaur",
   image: "https://example.com/bulbasaur.jpg",
   type: ["grass", "poison"],
+  height: 2.29659,
+  weight: 15.211878,
   abilitiesLite: [],
   stats: {
     hp: 45,

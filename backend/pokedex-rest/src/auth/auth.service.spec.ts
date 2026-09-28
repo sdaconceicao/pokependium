@@ -1,8 +1,16 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
-import type { Mocked } from 'vitest';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  type Mocked,
+  vi,
+} from 'vitest';
 import { MailService } from '../mail/mail.service';
 import { UserEntity } from '../users/users.entity';
 import { UsersService } from '../users/users.service';
@@ -32,6 +40,8 @@ describe('AuthService', () => {
     firstName: '',
     lastName: '',
     emailVerified: true,
+    failedPasswordAttempts: 0,
+    passwordLockedUntil: null,
   };
 
   const SUBMITTED = {
@@ -59,6 +69,7 @@ describe('AuthService', () => {
             create: vi.fn(),
             findOneById: vi.fn(),
             update: vi.fn(),
+            recordFailedPasswordAttempt: vi.fn(),
           },
         },
         {
@@ -109,6 +120,114 @@ describe('AuthService', () => {
   describe('validateUser', () => {
     it('should be defined', () => {
       expect(service).toBeDefined();
+    });
+
+    describe('lockout', () => {
+      const NOW = new Date('2026-08-27T12:00:00.000Z');
+
+      beforeEach(() => {
+        vi.useFakeTimers();
+        vi.setSystemTime(NOW);
+      });
+
+      afterEach(() => {
+        vi.useRealTimers();
+      });
+
+      it('refuses a locked account without checking the password', async () => {
+        usersService.findOneByEmail.mockResolvedValue({
+          ...mockUser,
+          failedPasswordAttempts: 5,
+          passwordLockedUntil: new Date(NOW.getTime() + 60_000),
+        });
+
+        await expect(
+          service.validateUser(mockUser.email, 'password123'),
+        ).rejects.toMatchObject({
+          status: HttpStatus.TOO_MANY_REQUESTS,
+        });
+
+        expect(bcrypt.compareSync).not.toHaveBeenCalled();
+        expect(usersService.update).not.toHaveBeenCalled();
+      });
+
+      it('counts a wrong password on the login path too', async () => {
+        usersService.findOneByEmail.mockResolvedValue({
+          ...mockUser,
+          failedPasswordAttempts: 2,
+        });
+        vi.mocked(bcrypt.compareSync).mockReturnValue(false);
+
+        await expect(
+          service.validateUser(mockUser.email, 'wrong'),
+        ).rejects.toThrow(new BadRequestException('Password does not match'));
+
+        expect(usersService.recordFailedPasswordAttempt).toHaveBeenCalledWith(
+          mockUser.id,
+          5,
+          15 * 60 * 1000,
+        );
+      });
+
+      it('starts a fresh streak after the lock window expires on a wrong password', async () => {
+        usersService.findOneByEmail.mockResolvedValue({
+          ...mockUser,
+          failedPasswordAttempts: 5,
+          passwordLockedUntil: new Date(NOW.getTime() - 1),
+        });
+        vi.mocked(bcrypt.compareSync).mockReturnValue(false);
+
+        await expect(
+          service.validateUser(mockUser.email, 'wrong'),
+        ).rejects.toThrow(new BadRequestException('Password does not match'));
+
+        expect(usersService.recordFailedPasswordAttempt).toHaveBeenCalledWith(
+          mockUser.id,
+          5,
+          15 * 60 * 1000,
+        );
+        expect(usersService.update).not.toHaveBeenCalled();
+      });
+
+      it('clears an accumulated streak on a successful login', async () => {
+        usersService.findOneByEmail.mockResolvedValue({
+          ...mockUser,
+          failedPasswordAttempts: 3,
+        });
+        vi.mocked(bcrypt.compareSync).mockReturnValue(true);
+
+        await service.validateUser(mockUser.email, 'password123');
+
+        expect(usersService.update).toHaveBeenCalledWith(mockUser.id, {
+          failedPasswordAttempts: 0,
+          passwordLockedUntil: null,
+        });
+      });
+
+      it('writes nothing when a successful login had no streak to clear', async () => {
+        usersService.findOneByEmail.mockResolvedValue(mockUser);
+        vi.mocked(bcrypt.compareSync).mockReturnValue(true);
+
+        await service.validateUser(mockUser.email, 'password123');
+
+        expect(usersService.update).not.toHaveBeenCalled();
+      });
+
+      it('lets a login through once the window has passed', async () => {
+        usersService.findOneByEmail.mockResolvedValue({
+          ...mockUser,
+          failedPasswordAttempts: 5,
+          passwordLockedUntil: new Date(NOW.getTime() - 1),
+        });
+        vi.mocked(bcrypt.compareSync).mockReturnValue(true);
+
+        const result = await service.validateUser(
+          mockUser.email,
+          'password123',
+        );
+
+        expect(result.email).toBe(mockUser.email);
+      });
     });
 
     it('should validate user successfully with correct credentials', async () => {
@@ -439,8 +558,9 @@ describe('AuthService', () => {
       });
       expect(usersService.update).toHaveBeenCalledWith(mockUser.id, {
         password: 'newHash',
-        // Reset doubles as verification — see confirmPasswordReset.
         emailVerified: true,
+        failedPasswordAttempts: 0,
+        passwordLockedUntil: null,
       });
       expect(result).toEqual({ access_token: 'access-token-123' });
     });
@@ -619,6 +739,191 @@ describe('AuthService', () => {
       // Three different emails, one indistinguishable response.
       expect(unverifiedReply).toEqual(verifiedReply);
       expect(verifiedReply).toEqual(newReply);
+    });
+  });
+
+  describe('changePassword', () => {
+    const UNABLE = new BadRequestException('Unable to change password');
+
+    it('verifies the current password, then rotates the hash', async () => {
+      usersService.findOneById.mockResolvedValue(mockUser);
+      usersService.findOneByEmail.mockResolvedValue(mockUser);
+      vi.mocked(bcrypt.compareSync).mockReturnValue(true as never);
+      vi.mocked(bcrypt.hash).mockResolvedValue('newHash' as never);
+      usersService.update.mockResolvedValue({
+        ...mockUser,
+        password: 'newHash',
+      });
+
+      const result = await service.changePassword(
+        mockUser.id,
+        'OldPikachu123!',
+        'NewPikachu123!',
+      );
+
+      expect(bcrypt.compareSync).toHaveBeenCalledWith(
+        'OldPikachu123!',
+        mockUser.password,
+      );
+      // Unlike a reset, this does not set emailVerified.
+      expect(usersService.update).toHaveBeenCalledWith(mockUser.id, {
+        password: 'newHash',
+        failedPasswordAttempts: 0,
+        passwordLockedUntil: null,
+      });
+      expect(result).toEqual({ message: 'Password updated' });
+    });
+
+    it('rejects a token naming a user who no longer exists', async () => {
+      usersService.findOneById.mockResolvedValue(null);
+
+      await expect(
+        service.changePassword('ghost-123', 'OldPikachu123!', 'NewPikachu123!'),
+      ).rejects.toThrow(UNABLE);
+      expect(usersService.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects a wrong current password and counts the attempt', async () => {
+      usersService.findOneById.mockResolvedValue(mockUser);
+      vi.mocked(bcrypt.compareSync).mockReturnValue(false as never);
+
+      await expect(
+        service.changePassword(mockUser.id, 'wrong', 'NewPikachu123!'),
+      ).rejects.toThrow(new BadRequestException('Password does not match'));
+
+      expect(usersService.recordFailedPasswordAttempt).toHaveBeenCalledWith(
+        mockUser.id,
+        5,
+        15 * 60 * 1000,
+      );
+      expect(bcrypt.hash).not.toHaveBeenCalled();
+    });
+
+    it('rejects when the password write reports no row updated', async () => {
+      usersService.findOneById.mockResolvedValue(mockUser);
+      usersService.findOneByEmail.mockResolvedValue(mockUser);
+      vi.mocked(bcrypt.compareSync).mockReturnValue(true as never);
+      vi.mocked(bcrypt.hash).mockResolvedValue('newHash' as never);
+      usersService.update.mockResolvedValue(null);
+
+      await expect(
+        service.changePassword(mockUser.id, 'OldPikachu123!', 'NewPikachu123!'),
+      ).rejects.toThrow(UNABLE);
+    });
+
+    describe('lockout', () => {
+      const NOW = new Date('2026-08-27T12:00:00.000Z');
+
+      beforeEach(() => {
+        vi.useFakeTimers();
+        vi.setSystemTime(NOW);
+      });
+
+      afterEach(() => {
+        vi.useRealTimers();
+      });
+
+      it('arms a 15-minute window on the fifth consecutive wrong guess', async () => {
+        usersService.findOneById.mockResolvedValue({
+          ...mockUser,
+          failedPasswordAttempts: 4,
+        });
+        vi.mocked(bcrypt.compareSync).mockReturnValue(false as never);
+
+        await expect(
+          service.changePassword(mockUser.id, 'wrong', 'NewPikachu123!'),
+        ).rejects.toThrow(BadRequestException);
+
+        expect(usersService.recordFailedPasswordAttempt).toHaveBeenCalledWith(
+          mockUser.id,
+          5,
+          15 * 60 * 1000,
+        );
+      });
+
+      it('leaves the window unarmed below the threshold', async () => {
+        usersService.findOneById.mockResolvedValue({
+          ...mockUser,
+          failedPasswordAttempts: 3,
+        });
+        vi.mocked(bcrypt.compareSync).mockReturnValue(false as never);
+
+        await expect(
+          service.changePassword(mockUser.id, 'wrong', 'NewPikachu123!'),
+        ).rejects.toThrow(BadRequestException);
+
+        expect(usersService.recordFailedPasswordAttempt).toHaveBeenCalledWith(
+          mockUser.id,
+          5,
+          15 * 60 * 1000,
+        );
+      });
+
+      it('refuses while locked, without checking the password at all', async () => {
+        usersService.findOneById.mockResolvedValue({
+          ...mockUser,
+          failedPasswordAttempts: 5,
+          passwordLockedUntil: new Date(NOW.getTime() + 60_000),
+        });
+
+        await expect(
+          service.changePassword(
+            mockUser.id,
+            'OldPikachu123!',
+            'NewPikachu123!',
+          ),
+        ).rejects.toMatchObject({
+          status: HttpStatus.TOO_MANY_REQUESTS,
+          message: 'Too many incorrect attempts. Try again later',
+        });
+
+        expect(bcrypt.compareSync).not.toHaveBeenCalled();
+        expect(usersService.update).not.toHaveBeenCalled();
+      });
+
+      it('starts a fresh streak after the lock window expires on a wrong password', async () => {
+        usersService.findOneById.mockResolvedValue({
+          ...mockUser,
+          failedPasswordAttempts: 5,
+          passwordLockedUntil: new Date(NOW.getTime() - 1),
+        });
+        vi.mocked(bcrypt.compareSync).mockReturnValue(false as never);
+
+        await expect(
+          service.changePassword(mockUser.id, 'wrong', 'NewPikachu123!'),
+        ).rejects.toThrow(BadRequestException);
+
+        expect(usersService.recordFailedPasswordAttempt).toHaveBeenCalledWith(
+          mockUser.id,
+          5,
+          15 * 60 * 1000,
+        );
+        expect(usersService.update).not.toHaveBeenCalled();
+      });
+
+      it('lets the correct password through once the window has passed', async () => {
+        usersService.findOneById.mockResolvedValue({
+          ...mockUser,
+          failedPasswordAttempts: 5,
+          passwordLockedUntil: new Date(NOW.getTime() - 1),
+        });
+        vi.mocked(bcrypt.compareSync).mockReturnValue(true as never);
+        vi.mocked(bcrypt.hash).mockResolvedValue('newHash' as never);
+        usersService.update.mockResolvedValue(mockUser);
+
+        const result = await service.changePassword(
+          mockUser.id,
+          'OldPikachu123!',
+          'NewPikachu123!',
+        );
+
+        expect(result).toEqual({ message: 'Password updated' });
+        expect(usersService.update).toHaveBeenCalledWith(mockUser.id, {
+          password: 'newHash',
+          failedPasswordAttempts: 0,
+          passwordLockedUntil: null,
+        });
+      });
     });
   });
 });

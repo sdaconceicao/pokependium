@@ -25,6 +25,8 @@ const charmander = {
   name: "charmander",
   image: "https://example.com/4.png",
   type: ["Fire"],
+  height: 2.29659,
+  weight: 15.211878,
   forms: [
     {
       id: "4",
@@ -126,6 +128,17 @@ describe("PokemonHero", () => {
       );
 
       expect(container.querySelector("p")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("physical stats", () => {
+    it("renders height and weight under the description", () => {
+      render(<PokemonHero pokemon={charmander} />);
+
+      expect(screen.getByText("Height")).toBeInTheDocument();
+      expect(screen.getByText("Weight")).toBeInTheDocument();
+      expect(screen.getByText("2'04\"")).toBeInTheDocument();
+      expect(screen.getByText("15.2 lbs")).toBeInTheDocument();
     });
   });
 

@@ -1,12 +1,12 @@
 import { InMemoryLRUCache } from "@apollo/utils.keyvaluecache";
 import { createSchema, createYoga } from "graphql-yoga";
 import { HttpResponse, http } from "msw";
-import { createContext, type DataSourceContext } from "./context.js";
-import { PokemonAPI } from "./datasources/pokemon-api.js";
-import { pokemonEntity, pokemonFormEntity } from "./mocks/pokemon.js";
-import { server } from "./mocks/server.js";
-import { resolvers } from "./resolvers.js";
-import { typeDefs } from "./schema.generated.js";
+import { createContext, type DataSourceContext } from "./context";
+import { PokemonAPI } from "./datasources/pokemon-api";
+import { pokemonEntity, pokemonFormEntity } from "./mocks/pokemon";
+import { server } from "./mocks/server";
+import { resolvers } from "./resolvers";
+import { typeDefs } from "./schema.generated";
 
 const yoga = createYoga({
   schema: createSchema<DataSourceContext>({ typeDefs, resolvers }),

@@ -78,6 +78,11 @@
   max-width: 52ch;
 }
 
+.physicalStats {
+  display: flex;
+  gap: 1.25rem;
+}
+
 .heroImage {
   display: flex;
   align-items: center;

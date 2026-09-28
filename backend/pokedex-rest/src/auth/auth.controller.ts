@@ -9,6 +9,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import {
   ApiBadRequestResponse,
+  ApiBearerAuth,
   ApiBody,
   ApiCreatedResponse,
   ApiOperation,
@@ -19,6 +20,8 @@ import type { FastifyRequest } from 'fastify';
 import { UserEntity } from '../users/users.entity';
 import { AuthService } from './auth.service';
 import { Public } from './decorators/public.decorator';
+import { ChangePasswordRequestDto } from './dtos/change-password-request.dto';
+import { ChangePasswordResponseDTO } from './dtos/change-password-response.dto';
 import {
   EmailVerificationConfirmRequestDto,
   EmailVerificationConfirmResponseDTO,
@@ -31,11 +34,18 @@ import { PasswordResetRequestDto } from './dtos/password-reset-request.dto';
 import { PasswordResetResponseDTO } from './dtos/password-reset-response.dto';
 import { RegisterRequestDto } from './dtos/register-request.dto';
 import { RegisterResponseDTO } from './dtos/register-response.dto';
+import { AccessTokenPayload } from './types/AccessTokenPayload';
+import { ChangePasswordValidationPipe } from './validation/change-password-validation.pipe';
 import { PasswordResetValidationPipe } from './validation/password-reset-validation.pipe';
 import { RegisterValidationPipe } from './validation/register-validation.pipe';
 
 export interface AuthenticatedRequest extends FastifyRequest {
   user: UserEntity;
+}
+
+/** Routes behind `JwtGuard` get the decoded token, not a UserEntity. */
+export interface JwtAuthenticatedRequest extends FastifyRequest {
+  user: AccessTokenPayload;
 }
 @Public()
 @ApiTags('auth')
@@ -126,5 +136,30 @@ export class AuthController {
     @Body() body: EmailVerificationConfirmRequestDto,
   ): Promise<EmailVerificationConfirmResponseDTO> {
     return this.authService.confirmEmailVerification(body.token);
+  }
+
+  @Public(false)
+  @Post('change-password')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Change your password while signed in' })
+  @ApiBody({ type: ChangePasswordRequestDto })
+  @ApiCreatedResponse({
+    description: 'Password updated',
+    type: ChangePasswordResponseDTO,
+  })
+  @ApiBadRequestResponse({
+    description:
+      'Wrong current password, or a new password that fails the policy or matches the current one',
+  })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
+  async changePassword(
+    @Body(ChangePasswordValidationPipe) body: ChangePasswordRequestDto,
+    @Request() req: JwtAuthenticatedRequest,
+  ): Promise<ChangePasswordResponseDTO> {
+    return this.authService.changePassword(
+      req.user.userId,
+      body.currentPassword,
+      body.password,
+    );
   }
 }

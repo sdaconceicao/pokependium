@@ -1,3 +1,5 @@
+import { describe, expect, it } from "vitest";
+
 import type { TypeResponse, TypeSprites } from "../datasources/pokemon-api.types";
 import type { TypeDamageRelations, TypeDetail } from "../types";
 import { buildPokemonMatchups, convertTypeToTypeDetail, getTypeSprite } from "./type";

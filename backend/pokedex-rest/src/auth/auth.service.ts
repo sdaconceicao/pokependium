@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -12,6 +17,7 @@ import { buildEmailVerificationMessage } from '../mail/templates/email-verificat
 import { buildPasswordResetMessage } from '../mail/templates/password-reset.template';
 import { UserEntity } from '../users/users.entity';
 import { UsersService } from '../users/users.service';
+import { ChangePasswordResponseDTO } from './dtos/change-password-response.dto';
 import { PasswordResetResponseDTO } from './dtos/password-reset-response.dto';
 import { RegisterRequestDto } from './dtos/register-request.dto';
 import { RegisterResponseDTO } from './dtos/register-response.dto';
@@ -35,6 +41,17 @@ const REGISTRATION_SUBMITTED_MESSAGE =
 // Expired, tampered, unknown user, and already-used all collapse to this.
 const INVALID_VERIFICATION_TOKEN_MESSAGE =
   'Invalid or expired verification link';
+
+const PASSWORD_CHANGED_MESSAGE = 'Password updated';
+
+// Vanished record or a no-op update — neither is actionable.
+const INVALID_CREDENTIALS_MESSAGE = 'Unable to change password';
+
+// Five failures lock for 15 minutes (stolen-token brute-force of the current password).
+const MAX_FAILED_PASSWORD_ATTEMPTS = 5;
+const PASSWORD_LOCKOUT_MS = 15 * 60 * 1000;
+
+const PASSWORD_LOCKED_MESSAGE = 'Too many incorrect attempts. Try again later';
 
 @Injectable()
 export class AuthService {
@@ -138,6 +155,9 @@ export class AuthService {
       // Completing a reset means they read an email at this address, which is
       // exactly what verification proves — so don't strand them unverified.
       emailVerified: true,
+      // Reset also clears a login lockout, otherwise recovery would not recover the account.
+      failedPasswordAttempts: 0,
+      passwordLockedUntil: null,
     });
     if (!updated) {
       throw new BadRequestException(INVALID_RESET_TOKEN_MESSAGE);
@@ -176,6 +196,61 @@ export class AuthService {
     }
 
     return this.login(updated);
+  }
+
+  /**
+   * Rotates the hash, which invalidates outstanding reset tokens (`resetTokenSecret`).
+   * Access tokens are signed against JWT_SECRET alone, so other sessions stay valid.
+   */
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<ChangePasswordResponseDTO> {
+    const user = await this.usersService.findOneById(userId);
+    if (!user) {
+      throw new BadRequestException(INVALID_CREDENTIALS_MESSAGE);
+    }
+
+    if (this.isPasswordLocked(user)) {
+      throw new HttpException(
+        PASSWORD_LOCKED_MESSAGE,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    // Not validateUser: that also throws for an unverified address, which must
+    // not count as a password guess.
+    if (!bcrypt.compareSync(currentPassword, user.password)) {
+      await this.recordFailedPasswordAttempt(user);
+      throw new BadRequestException('Password does not match');
+    }
+
+    const updated = await this.usersService.update(user.id, {
+      password: await bcrypt.hash(newPassword, 10),
+      failedPasswordAttempts: 0,
+      passwordLockedUntil: null,
+    });
+    if (!updated) {
+      throw new BadRequestException(INVALID_CREDENTIALS_MESSAGE);
+    }
+
+    return { message: PASSWORD_CHANGED_MESSAGE };
+  }
+
+  private isPasswordLocked(user: UserEntity): boolean {
+    return (
+      !!user.passwordLockedUntil &&
+      user.passwordLockedUntil.getTime() > Date.now()
+    );
+  }
+
+  private async recordFailedPasswordAttempt(user: UserEntity): Promise<void> {
+    await this.usersService.recordFailedPasswordAttempt(
+      user.id,
+      MAX_FAILED_PASSWORD_ATTEMPTS,
+      PASSWORD_LOCKOUT_MS,
+    );
   }
 
   /**
@@ -221,10 +296,29 @@ export class AuthService {
     if (!user) {
       throw new BadRequestException('User not found');
     }
+
+    // Unauthenticated, so this lockout is DoS-able; password reset is the escape hatch.
+    if (this.isPasswordLocked(user)) {
+      throw new HttpException(
+        PASSWORD_LOCKED_MESSAGE,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
     const isMatch: boolean = bcrypt.compareSync(password, user.password);
     if (!isMatch) {
+      await this.recordFailedPasswordAttempt(user);
       throw new BadRequestException('Password does not match');
     }
+
+    // Skip the write when there is nothing to clear — login is the hot path.
+    if (user.failedPasswordAttempts > 0 || user.passwordLockedUntil) {
+      await this.usersService.update(user.id, {
+        failedPasswordAttempts: 0,
+        passwordLockedUntil: null,
+      });
+    }
+
     // Checked only after the password matches: otherwise a wrong password on
     // an unverified account would still confirm the address is registered.
     if (!user.emailVerified) {

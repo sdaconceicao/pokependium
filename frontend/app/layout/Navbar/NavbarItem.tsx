@@ -27,9 +27,10 @@ export interface NavItem {
 
 interface NavbarItemProps {
   item: NavItem;
+  onNavigate?: () => void;
 }
 
-export default function NavbarItem({ item }: NavbarItemProps) {
+export default function NavbarItem({ item, onNavigate }: NavbarItemProps) {
   const searchParams = useSearchParams();
   const pathname = usePathname();
 
@@ -59,6 +60,7 @@ export default function NavbarItem({ item }: NavbarItemProps) {
       href={item.href}
       aria-current={isActive ? "page" : undefined}
       className={styles.navItem}
+      onPress={onNavigate}
       render={(props) => (
         // lago types `render`'s props as anchor-or-span, because Link drops to
         // a <span> when it has no href. This one always has one, so the anchor

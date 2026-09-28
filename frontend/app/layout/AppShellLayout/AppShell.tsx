@@ -111,6 +111,7 @@ export default function AppShell({ children, navigationData }: AppShellProps) {
                 openSection={openSection}
                 currentSection={routeSection}
                 onOpenSectionChange={setOpenSection}
+                onNavigate={() => setDrawerOpen(false)}
               />
             </Suspense>
           </div>

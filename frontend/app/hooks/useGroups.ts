@@ -1,5 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getStoredToken } from "@/lib/auth";
+import { skipToken, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { requireStoredToken } from "@/lib/auth";
 import { groupsApi } from "@/lib/groups";
 import type { CreateGroupRequest, GroupPokemon, PokemonGroup, UpdateGroupRequest } from "@/types";
 import { useAuth } from "./useAuth";
@@ -13,7 +13,7 @@ export function useGroups() {
     error,
   } = useQuery({
     queryKey: ["groups"],
-    queryFn: () => groupsApi.list(getStoredToken()!),
+    queryFn: () => groupsApi.list(requireStoredToken()),
     enabled: !!user,
   });
 
@@ -31,7 +31,7 @@ export function useGroupMemberships() {
     error,
   } = useQuery({
     queryKey: ["groups", "memberships"],
-    queryFn: () => groupsApi.listMemberships(getStoredToken()!),
+    queryFn: () => groupsApi.listMemberships(requireStoredToken()),
     enabled: !!user,
   });
 
@@ -47,8 +47,8 @@ export function useGroupPokemon(groupId: string | undefined) {
     error,
   } = useQuery({
     queryKey: ["groups", groupId, "pokemon"],
-    queryFn: () => groupsApi.listPokemon(getStoredToken()!, groupId!),
-    enabled: !!user && !!groupId,
+    queryFn: groupId ? () => groupsApi.listPokemon(requireStoredToken(), groupId) : skipToken,
+    enabled: !!user,
   });
 
   return { pokemon, isLoading, error };
@@ -58,7 +58,7 @@ export function useCreateGroup() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation<PokemonGroup, Error, CreateGroupRequest>({
-    mutationFn: (body) => groupsApi.create(getStoredToken()!, body),
+    mutationFn: (body) => groupsApi.create(requireStoredToken(), body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["groups"] });
     },
@@ -81,7 +81,7 @@ export function useUpdateGroup() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation<PokemonGroup, Error, UpdateGroupVariables>({
-    mutationFn: ({ id, body }) => groupsApi.update(getStoredToken()!, id, body),
+    mutationFn: ({ id, body }) => groupsApi.update(requireStoredToken(), id, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["groups"] });
     },
@@ -99,7 +99,7 @@ export function useDeleteGroup() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation<void, Error, string>({
-    mutationFn: (id) => groupsApi.remove(getStoredToken()!, id),
+    mutationFn: (id) => groupsApi.remove(requireStoredToken(), id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["groups"] });
     },
@@ -122,7 +122,7 @@ export function useAddPokemonToGroup() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation<GroupPokemon, Error, AddPokemonToGroupVariables>({
-    mutationFn: ({ groupId, body }) => groupsApi.addPokemon(getStoredToken()!, groupId, body),
+    mutationFn: ({ groupId, body }) => groupsApi.addPokemon(requireStoredToken(), groupId, body),
     onSuccess: (_data, { groupId }) => {
       queryClient.invalidateQueries({ queryKey: ["groups"] });
       queryClient.invalidateQueries({ queryKey: ["groups", groupId, "pokemon"] });
@@ -147,7 +147,7 @@ export function useRemovePokemonFromGroup() {
 
   const mutation = useMutation<void, Error, RemovePokemonFromGroupVariables>({
     mutationFn: ({ groupId, pokemonId }) =>
-      groupsApi.removePokemon(getStoredToken()!, groupId, pokemonId),
+      groupsApi.removePokemon(requireStoredToken(), groupId, pokemonId),
     onSuccess: (_data, { groupId }) => {
       queryClient.invalidateQueries({ queryKey: ["groups"] });
       queryClient.invalidateQueries({ queryKey: ["groups", groupId, "pokemon"] });

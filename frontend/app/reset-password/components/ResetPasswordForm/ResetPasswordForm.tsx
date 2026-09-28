@@ -7,7 +7,7 @@ import { useState } from "react";
 import styles from "@/components/AuthButtons/AuthButtons.module.css";
 import { useAuth } from "@/hooks/useAuth";
 import { notify } from "@/lib/toast";
-import { validatePassword } from "@/lib/validation";
+import { validateNewPassword } from "@/lib/validation";
 
 export default function ResetPasswordForm() {
   const router = useRouter();
@@ -27,41 +27,25 @@ export default function ResetPasswordForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrors({});
 
-    const newErrors: Record<string, string> = {};
-
-    if (!password) {
-      newErrors.password = "Password is required";
-    } else {
-      const passwordValidation = validatePassword(password);
-      if (!passwordValidation.isValid) {
-        newErrors.password = passwordValidation.errors[0];
-      }
-    }
-
-    if (!confirmPassword) {
-      newErrors.confirmPassword = "Please confirm your password";
-    } else if (password !== confirmPassword) {
-      newErrors.confirmPassword = "Passwords do not match";
-    }
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
+    const newErrors: Record<string, string> = {
+      ...validateNewPassword(password, confirmPassword),
+    };
+    setErrors(newErrors);
+    if (Object.values(newErrors).some(Boolean)) return;
 
     try {
       await confirmPasswordResetAsync({ token, password });
       notify({
         title: "Password updated",
-        description: "You are now signed in.",
+        description: "Your password has been updated.",
         variant: "success",
       });
       router.replace("/");
     } catch (error) {
       notify({
-        title: error instanceof Error ? error.message : "Password reset failed",
+        title: "Password reset failed",
+        description: error instanceof Error ? error.message : "Please try again.",
         variant: "error",
       });
     }

@@ -29,8 +29,8 @@ jobs:
         with:
           node-version: "24.x"
 
-      - name: Run linting - backend
-        run: pnpm --filter "./backend/*" run lint
+      - name: Run linting/format - backend
+        run: pnpm --filter "./backend/*" run check
 
       - name: Run type checking - backend
         run: pnpm --filter "./backend/*" run tsc

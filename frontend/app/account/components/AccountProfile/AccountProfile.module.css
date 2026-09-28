@@ -1,0 +1,133 @@
+.container {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: clamp(1.5rem, 4vw, 3rem);
+  row-gap: var(--spacing-4);
+  align-items: start;
+  /* Sidebar docked vs collapsed changes panel width at the same viewport, so query the container. */
+  container-type: inline-size;
+  container-name: account;
+}
+
+/* Full-width except the avatar + details row. */
+.container > :not(.avatar, .list) {
+  grid-column: 1 / -1;
+}
+
+/* Source order is details then avatar; place them explicitly. */
+.avatar {
+  grid-column: 1;
+  grid-row: 3;
+}
+
+.list {
+  grid-column: 2;
+  grid-row: 3;
+}
+
+.intro {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--muted-foreground);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.row {
+  display: grid;
+  /* Label shrinks first. Floor is ~"USERNAME"; a fixed 10rem starved long emails. */
+  grid-template-columns: minmax(5rem, 8rem) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: baseline;
+  padding: 0.875rem 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.row:first-child {
+  border-top: none;
+}
+
+.label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.value {
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
+}
+
+/* Mask + edit affordance; scoped so email/username/name rows stay untouched. */
+.passwordValue {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.mask {
+  letter-spacing: 0.1em;
+  color: var(--muted-foreground);
+}
+
+/* Override lago's underlined text-link styles on this icon (unlayered, see globals.css). */
+.editLink {
+  display: inline-flex;
+  align-items: center;
+  color: var(--muted-foreground);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.editLink svg {
+  width: 16px;
+  height: 16px;
+}
+
+.editLink:hover {
+  color: var(--tint);
+}
+
+@container account (max-width: 26rem) {
+  .row {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
+}
+
+/* AppShell undocks the sidebar at 768px, so panel width is not monotonic with
+   the viewport — a media query, not a container query. Matches AppShell. */
+@media (max-width: 767px) {
+  .container {
+    grid-template-columns: 1fr;
+  }
+
+  .heading,
+  .intro,
+  .list {
+    grid-column: 1;
+  }
+
+  .heading {
+    grid-row: 1;
+  }
+
+  .intro {
+    grid-row: 2;
+  }
+
+  .avatar {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  .list {
+    grid-row: 4;
+  }
+}

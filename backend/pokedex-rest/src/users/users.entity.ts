@@ -22,4 +22,11 @@ export class UserEntity {
 
   @Column({ type: 'boolean', default: false })
   emailVerified: boolean;
+
+  // Wrong-password streak; reset on success. Lockout window is passwordLockedUntil.
+  @Column({ type: 'smallint', default: 0 })
+  failedPasswordAttempts: number;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  passwordLockedUntil: Date | null;
 }

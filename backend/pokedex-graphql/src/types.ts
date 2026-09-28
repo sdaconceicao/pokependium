@@ -98,6 +98,7 @@ export type Pokemon = {
   descriptions?: Maybe<Array<PokemonDescription>>;
   evolution?: Maybe<EvolutionChain>;
   forms?: Maybe<Array<PokemonForm>>;
+  height: Scalars['Float']['output'];
   id: Scalars['ID']['output'];
   image: Scalars['String']['output'];
   matchups?: Maybe<PokemonMatchups>;
@@ -106,6 +107,7 @@ export type Pokemon = {
   speciesName: Scalars['String']['output'];
   stats: Stats;
   type: Array<Scalars['String']['output']>;
+  weight: Scalars['Float']['output'];
 };
 
 export type PokemonDescription = {
@@ -550,6 +552,7 @@ export type PokemonResolvers<ContextType = DataSourceContext, ParentType extends
   descriptions?: Resolver<Maybe<Array<ResolversTypes['PokemonDescription']>>, ParentType, ContextType>;
   evolution?: Resolver<Maybe<ResolversTypes['EvolutionChain']>, ParentType, ContextType>;
   forms?: Resolver<Maybe<Array<ResolversTypes['PokemonForm']>>, ParentType, ContextType>;
+  height?: Resolver<ResolversTypes['Float'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   image?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   matchups?: Resolver<Maybe<ResolversTypes['PokemonMatchups']>, ParentType, ContextType>;
@@ -558,6 +561,7 @@ export type PokemonResolvers<ContextType = DataSourceContext, ParentType extends
   speciesName?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   stats?: Resolver<ResolversTypes['Stats'], ParentType, ContextType>;
   type?: Resolver<Array<ResolversTypes['String']>, ParentType, ContextType>;
+  weight?: Resolver<ResolversTypes['Float'], ParentType, ContextType>;
 };
 
 export type PokemonDescriptionResolvers<ContextType = DataSourceContext, ParentType extends ResolversParentTypes['PokemonDescription'] = ResolversParentTypes['PokemonDescription']> = {

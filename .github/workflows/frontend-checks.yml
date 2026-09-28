@@ -29,8 +29,8 @@ jobs:
         with:
           node-version: "24.x"
 
-      - name: Run linting - frontend
-        run: pnpm --filter ./frontend run lint
+      - name: Run linting/format - frontend
+        run: pnpm --filter ./frontend run check
 
       - name: Run type checking - frontend
         run: pnpm --filter ./frontend run tsc

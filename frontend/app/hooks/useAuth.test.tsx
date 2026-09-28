@@ -14,6 +14,7 @@ vi.mock("@/lib/auth", async (importOriginal) => {
       register: vi.fn(),
       confirmPasswordReset: vi.fn(),
       confirmEmailVerification: vi.fn(),
+      changePassword: vi.fn(),
       getCurrentUser: vi.fn(),
       logout: actual.authApi.logout,
     },
@@ -135,6 +136,32 @@ describe("useAuth mutations", () => {
     });
 
     expect(getStoredToken()).toBe("at-3");
+  });
+
+  it("sends the stored token with a password change and leaves the session alone", async () => {
+    vi.mocked(authApi.login).mockResolvedValue({ access_token: "at-5" });
+    vi.mocked(authApi.changePassword).mockResolvedValue({
+      message: "Password updated",
+    });
+    const { result, queryClient } = setup();
+
+    await act(async () => {
+      await result.current.loginAsync({ email: "a@b.c", password: "p" });
+    });
+
+    await act(async () => {
+      await result.current.changePasswordAsync({
+        currentPassword: "OldPikachu123!",
+        password: "NewPikachu123!",
+      });
+    });
+
+    expect(authApi.changePassword).toHaveBeenCalledWith("at-5", {
+      currentPassword: "OldPikachu123!",
+      password: "NewPikachu123!",
+    });
+    expect(getStoredToken()).toBe("at-5");
+    expect(queryClient.getQueryData(["auth", "token"])).toBe("at-5");
   });
 
   it("clears the token and drops cached groups on logout", async () => {

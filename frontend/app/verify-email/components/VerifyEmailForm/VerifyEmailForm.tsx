@@ -33,7 +33,11 @@ export default function VerifyEmailForm() {
       .catch((caught: unknown) => {
         const message = caught instanceof Error ? caught.message : "Verification failed";
         setError(message);
-        notify({ title: message, variant: "error" });
+        notify({
+          title: "Verification failed",
+          description: message,
+          variant: "error",
+        });
       });
   }, [token, confirmEmailVerificationAsync, router]);
 

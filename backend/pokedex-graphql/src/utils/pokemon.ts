@@ -8,6 +8,7 @@ import type {
   PokemonStat,
 } from "../datasources/pokemon-api.types.js";
 import type { AbilityLite, Pokemon, PokemonDescription, Stats } from "../types.js";
+import { decimetersToFeet, hectogramsToPounds } from "./conversion.js";
 
 export const FORM_ID_THRESHOLD = 10000;
 
@@ -161,6 +162,8 @@ export const convertPokemonEntityToPokemon = (pokemon: PokemonEntity): Pokemon =
     name: pokemon.name,
     type: getPokemonTypes(pokemon),
     image: getPokemonDefaultImageUrl(pokemon),
+    height: decimetersToFeet(pokemon.height),
+    weight: hectogramsToPounds(pokemon.weight),
     stats: getPokemonStats(pokemon),
     abilitiesLite: getPokemonAbilitiesLite(pokemon),
   };
