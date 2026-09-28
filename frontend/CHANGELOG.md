@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/sdaconceicao/pokependium/compare/pokedex-frontend-v0.7.0...pokedex-frontend-v0.7.1) (2026-09-28)
+
+
+### Bug Fixes
+
+* Disable analytics outside of prod ([#176](https://github.com/sdaconceicao/pokependium/issues/176)) ([9799636](https://github.com/sdaconceicao/pokependium/commit/9799636f7e552df7ec9d83b66c5df8252a1ac728))
+
 ## [0.7.0](https://github.com/sdaconceicao/pokependium/compare/pokedex-frontend-v0.6.0...pokedex-frontend-v0.7.0) (2026-09-28)
 
 
