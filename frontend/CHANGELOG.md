@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.7.0](https://github.com/sdaconceicao/pokependium/compare/pokedex-frontend-v0.6.0...pokedex-frontend-v0.7.0) (2026-09-28)
+
+
+### Features
+
+* Account page ([#155](https://github.com/sdaconceicao/pokependium/issues/155)) ([162dbf6](https://github.com/sdaconceicao/pokependium/commit/162dbf608105fe7c5466f574ffe33975adad444f))
+* Analytics scripts ([#171](https://github.com/sdaconceicao/pokependium/issues/171)) ([cbacbcc](https://github.com/sdaconceicao/pokependium/commit/cbacbcc8be0ce3d5587339699f6ae2ec5f56b6fd))
+* Height/weight for pokemon ([#156](https://github.com/sdaconceicao/pokependium/issues/156)) ([1d53dcb](https://github.com/sdaconceicao/pokependium/commit/1d53dcb15f9b6ec1f269965cecc43c954e7216b2))
+
+
+### Bug Fixes
+
+* Mobile UX Updates ([#149](https://github.com/sdaconceicao/pokependium/issues/149)) ([ee22937](https://github.com/sdaconceicao/pokependium/commit/ee22937c753d657c048ad8b9e62a33c0b28e32a0))
+
 ## [0.6.0](https://github.com/sdaconceicao/pokependium/compare/pokedex-frontend-v0.5.0...pokedex-frontend-v0.6.0) (2026-08-26)
 
 
