@@ -49,16 +49,20 @@ export default async function RootLayout({
       <body>
         {/* biome-ignore lint/security/noDangerouslySetInnerHtml: static, build-time constant — the pre-paint theme script */}
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-        <Script
-          src="https://umami-fennec-ral.vercel.app/script.js"
-          data-website-id="287fbbc3-48df-4bc8-9345-6904916483af"
-          strategy="afterInteractive"
-        />
-        <Script
-          src="https://umami-fennec-ral.vercel.app/recorder.js"
-          data-website-id="287fbbc3-48df-4bc8-9345-6904916483af"
-          strategy="afterInteractive"
-        />
+        {process.env.NODE_ENV === "production" && (
+          <>
+            <Script
+              src="https://umami-fennec-ral.vercel.app/script.js"
+              data-website-id="287fbbc3-48df-4bc8-9345-6904916483af"
+              strategy="afterInteractive"
+            />
+            <Script
+              src="https://umami-fennec-ral.vercel.app/recorder.js"
+              data-website-id="287fbbc3-48df-4bc8-9345-6904916483af"
+              strategy="afterInteractive"
+            />
+          </>
+        )}
         <LagoProvider>
           <QueryProvider>
             <ApolloWrapper>
