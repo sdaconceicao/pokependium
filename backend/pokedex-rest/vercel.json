@@ -1,4 +1,7 @@
 {
   "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
-  "buildCommand": "pnpm build && if [ \"$VERCEL_ENV\" = \"preview\" ]; then node dist/run-migrations.js; fi"
+  "buildCommand": "pnpm build && if [ \"$VERCEL_ENV\" = \"preview\" ]; then node dist/run-migrations.js; fi",
+  "env": {
+    "NODE_OPTIONS": "--experimental-require-module"
+  }
 }

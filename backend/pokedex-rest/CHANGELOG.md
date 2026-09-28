@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/sdaconceicao/pokependium/compare/pokedex-rest-v0.5.0...pokedex-rest-v0.5.1) (2026-09-28)
+
+
+### Bug Fixes
+
+* Added missing node flag for rest deployment in vercel ([#173](https://github.com/sdaconceicao/pokependium/issues/173)) ([6aa981c](https://github.com/sdaconceicao/pokependium/commit/6aa981c1ef10dc3465571d22d198dece13406676))
+
 ## [0.5.0](https://github.com/sdaconceicao/pokependium/compare/pokedex-rest-v0.4.0...pokedex-rest-v0.5.0) (2026-09-27)
 
 
