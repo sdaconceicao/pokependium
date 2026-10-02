@@ -145,6 +145,7 @@ export const GET_POKEMON_NAME_SUGGESTIONS = gql`
         speciesId
         speciesName
         name
+        image
       }
     }
   }
