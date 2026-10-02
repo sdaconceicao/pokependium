@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { useApolloClient } from "@apollo/client/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -10,7 +11,12 @@ vi.mock("next/navigation", () => ({
   useSearchParams: vi.fn(),
 }));
 
+vi.mock("@apollo/client/react", () => ({
+  useApolloClient: vi.fn(),
+}));
+
 const mockPush = vi.fn();
+const mockQuery = vi.fn();
 const mockRouter = {
   push: mockPush,
 };
@@ -26,6 +32,46 @@ describe("SearchBar", () => {
     vi.mocked(useSearchParams).mockReturnValue(
       mockSearchParams as unknown as ReturnType<typeof useSearchParams>,
     );
+    vi.mocked(useApolloClient).mockReturnValue({ query: mockQuery } as unknown as ReturnType<
+      typeof useApolloClient
+    >);
+    mockQuery.mockResolvedValue({ data: { pokemonSearch: { pokemon: [] } } });
+  });
+
+  it("shows matching Pokémon with images and opens a selected suggestion", async () => {
+    const user = userEvent.setup();
+    mockSearchParams.get.mockReturnValue("");
+    mockQuery.mockResolvedValue({
+      data: {
+        pokemonSearch: {
+          pokemon: [
+            {
+              id: "4",
+              speciesId: "4",
+              speciesName: "charmander",
+              name: "charmander",
+              image: "https://example.com/charmander.png",
+            },
+          ],
+        },
+      },
+    });
+
+    render(<SearchBar />);
+    await user.type(screen.getByPlaceholderText("Search Pokemon..."), "char");
+
+    const suggestion = await screen.findByRole("option", { name: "Charmander" });
+    expect(within(suggestion).getByText("Charmander")).toBeInTheDocument();
+    expect(suggestion.querySelector("img")).toHaveAttribute(
+      "src",
+      "https://example.com/charmander.png",
+    );
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.objectContaining({ variables: { query: "char", limit: 8 } }),
+    );
+
+    await user.click(suggestion);
+    expect(mockPush).toHaveBeenCalledWith("/pokemon/4");
   });
 
   describe("Initial Rendering", () => {

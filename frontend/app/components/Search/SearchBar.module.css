@@ -82,3 +82,17 @@
   background: var(--layout-secondary-background);
   color: var(--layout-primary-background);
 }
+
+.suggestion {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.suggestionImage {
+  flex-shrink: 0;
+}
+
+.suggestionImage img {
+  object-fit: contain;
+}
