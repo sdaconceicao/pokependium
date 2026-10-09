@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/sdaconceicao/pokependium/compare/pokedex-frontend-v0.7.1...pokedex-frontend-v0.8.0) (2026-10-09)
+
+
+### Features
+
+* Search autocomplete ([#179](https://github.com/sdaconceicao/pokependium/issues/179)) ([4427154](https://github.com/sdaconceicao/pokependium/commit/442715465c330072f260167f27774d18673e8b69))
+
 ## [0.7.1](https://github.com/sdaconceicao/pokependium/compare/pokedex-frontend-v0.7.0...pokedex-frontend-v0.7.1) (2026-09-28)
 
 
