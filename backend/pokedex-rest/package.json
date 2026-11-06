@@ -57,7 +57,7 @@
   "devDependencies": {
     "@biomejs/biome": "catalog:",
     "@jorgebodega/typeorm-seeding": "^7.1.0",
-    "@nestjs/cli": "^11.0.24",
+    "@nestjs/cli": "^12.0.11",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^12.3.2",
     "@swc/core": "^1.16.20",
